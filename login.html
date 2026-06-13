@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>StoryWeaver AI · Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at 10% 20%, #1a1c3b, #0a0a1a);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 70% 80%, #2a1b3d, transparent 60%),
+                  radial-gradient(circle at 20% 10%, #1b3d3a, transparent 50%);
+      z-index: -2;
+      animation: subtleShift 20s ease infinite alternate;
+    }
+
+    @keyframes subtleShift {
+      0% { opacity: 0.6; transform: scale(1); }
+      100% { opacity: 1; transform: scale(1.05); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .container {
+      max-width: 500px;
+      width: 100%;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .logo h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(130deg, #FFD89B, #C7B9FF, #6CFFD6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .logo p {
+      color: #a9b2e0;
+      margin-top: 0.5rem;
+    }
+
+    .glass-card {
+      background: rgba(20, 22, 45, 0.75);
+      backdrop-filter: blur(14px);
+      border-radius: 2rem;
+      border: 1px solid rgba(108, 99, 255, 0.3);
+      padding: 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(108, 99, 255, 0.2);
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 0.6rem 1.5rem;
+      border-radius: 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #cdd6f4;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .tab-btn.active {
+      background: #6c63ff;
+      color: white;
+      box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+    }
+
+    .form-panel {
+      display: none;
+      animation: fadeInUp 0.4s ease-out;
+    }
+    .form-panel.active-form {
+      display: block;
+    }
+
+    .input-group {
+      margin-bottom: 1.2rem;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #cdd6f4;
+    }
+    .input-group input, .input-group select {
+      width: 100%;
+      background: rgba(10, 12, 28, 0.8);
+      border: 1px solid rgba(108, 99, 255, 0.4);
+      border-radius: 1rem;
+      padding: 0.9rem 1rem;
+      font-size: 0.95rem;
+      color: white;
+      transition: all 0.2s;
+    }
+    .input-group input:focus, .input-group select:focus {
+      outline: none;
+      border-color: #6c63ff;
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(95deg, #6c63ff, #9b59b6);
+      border: none;
+      padding: 1rem;
+      border-radius: 2rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 0.5rem;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+      box-shadow: 0 10px 20px rgba(108, 99, 255, 0.3);
+    }
+
+    .divider {
+      text-align: center;
+      margin: 1.5rem 0;
+      position: relative;
+    }
+    .divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: rgba(108, 99, 255, 0.2);
+    }
+    .divider span {
+      background: rgba(20, 22, 45, 0.8);
+      padding: 0 1rem;
+      font-size: 0.8rem;
+      color: #a9b2e0;
+      position: relative;
+    }
+
+    .social-login {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .social-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(108, 99, 255, 0.3);
+      padding: 0.7rem 1.2rem;
+      border-radius: 2rem;
+      font-size: 0.9rem;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .social-btn:hover {
+      background: rgba(108, 99, 255, 0.2);
+    }
+
+    .footer-text {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+      color: #a9b2e0;
+    }
+    .footer-text a {
+      color: #6c63ff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .error-message {
+      background: rgba(231, 76, 60, 0.2);
+      border: 1px solid #e74c3c;
+      border-radius: 1rem;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: #e74c3c;
+      font-size: 0.9rem;
+    }
+
+    .success-message {
+      background: rgba(39, 174, 96, 0.2);
+      border: 1px solid #27ae60;
+      border-radius: 1rem;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: #27ae60;
+      font-size: 0.9rem;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 500px) {
+      .glass-card { padding: 1.5rem; }
+      .row-2 { grid-template-columns: 1fr; gap: 0; }
+      .logo h1 { font-size: 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>📖 StoryWeaver AI</h1>
+    <p>Join the community of storytellers and filmmakers</p>
+  </div>
+
+  <div class="glass-card">
+    <div class="tab-nav">
+      <button class="tab-btn active" data-form="login">🔐 Sign In</button>
+      <button class="tab-btn" data-form="signup">✨ Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="form-panel active-form">
+      <div id="loginError" class="error-message" style="display: none;"></div>
+      
+      <div class="input-group">
+        <label>📧 Email Address</label>
+        <input type="email" id="loginEmail" placeholder="Enter your email">
+      </div>
+      
+      <div class="input-group">
+        <label>🔒 Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password">
+      </div>
+      
+      <button class="btn-primary" onclick="handleLogin()">Sign In →</button>
+      
+      <div class="divider"><span>or continue with</span></div>
+      
+      <div class="social-login">
+        <button class="social-btn" onclick="alert('Google login coming soon!')">🍔 Google</button>
+        <button class="social-btn" onclick="alert('GitHub login coming soon!')">🐙 GitHub</button>
+      </div>
+      
+      <div class="footer-text">
+        Don't have an account? <a onclick="switchToSignup()">Create one →</a>
+      </div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" class="form-panel">
+      <div id="signupError" class="error-message" style="display: none;"></div>
+      <div id="signupSuccess" class="success-message" style="display: none;"></div>
+      
+      <div class="row-2">
+        <div class="input-group">
+          <label>👤 First Name</label>
+          <input type="text" id="signupFirstName" placeholder="First name">
+        </div>
+        <div class="input-group">
+          <label>👥 Last Name</label>
+          <input type="text" id="signupLastName" placeholder="Last name">
+        </div>
+      </div>
+      
+      <div class="input-group">
+        <label>📧 Email Address</label>
+        <input type="email" id="signupEmail" placeholder="Enter your email">
+      </div>
+      
+      <div class="row-2">
+        <div class="input-group">
+          <label>🎂 Date of Birth</label>
+          <input type="date" id="signupDob">
+        </div>
+        <div class="input-group">
+          <label>📍 City</label>
+          <input type="text" id="signupCity" placeholder="Your city">
+        </div>
+      </div>
+      
+      <div class="row-2">
+        <div class="input-group">
+          <label>🌍 Country</label>
+          <select id="signupCountry">
+            <option value="">Select country</option>
+            <option value="India">🇮🇳 India</option>
+            <option value="USA">🇺🇸 USA</option>
+            <option value="UK">🇬🇧 UK</option>
+            <option value="Canada">🇨🇦 Canada</option>
+            <option value="Australia">🇦🇺 Australia</option>
+            <option value="Germany">🇩🇪 Germany</option>
+            <option value="France">🇫🇷 France</option>
+            <option value="Japan">🇯🇵 Japan</option>
+            <option value="Other">🌎 Other</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>🎭 Role</label>
+          <select id="signupRole">
+            <option value="">Select role</option>
+            <option value="writer">✍️ Writer / Storyteller</option>
+            <option value="director">🎬 Director / Filmmaker</option>
+            <option value="both">🌟 Both (Writer & Director)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="input-group">
+        <label>🔒 Password</label>
+        <input type="password" id="signupPassword" placeholder="Create a password (min 6 characters)">
+      </div>
+      
+      <div class="input-group">
+        <label>🔒 Confirm Password</label>
+        <input type="password" id="signupConfirmPassword" placeholder="Confirm your password">
+      </div>
+      
+      <button class="btn-primary" onclick="handleSignup()">✨ Create Account →</button>
+      
+      <div class="divider"><span>or continue with</span></div>
+      
+      <div class="social-login">
+        <button class="social-btn" onclick="alert('Google login coming soon!')">🍔 Google</button>
+        <button class="social-btn" onclick="alert('GitHub login coming soon!')">🐙 GitHub</button>
+      </div>
+      
+      <div class="footer-text">
+        Already have an account? <a onclick="switchToLogin()">Sign In →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Try multiple possible backend URLs
+  const BACKEND_URLS = [
+    'http://localhost:3000/api',
+    'http://127.0.0.1:3000/api',
+    'http://localhost:3001/api'
+  ];
+  
+  let API_URL = BACKEND_URLS[0];
+
+  // Test connection to backend
+  async function testBackendConnection() {
+    for (const url of BACKEND_URLS) {
+      try {
+        const response = await fetch(`${url}/health`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (response.ok) {
+          API_URL = url;
+          console.log(`✅ Connected to backend at: ${API_URL}`);
+          return true;
+        }
+      } catch (err) {
+        console.log(`❌ Cannot connect to ${url}`);
+      }
+    }
+    return false;
+  }
+
+  // Show loading state on button
+  function setButtonLoading(button, loading) {
+    if (loading) {
+      button.disabled = true;
+      button.innerHTML = 'Processing... <span class="loading"></span>';
+    } else {
+      button.disabled = false;
+      button.innerHTML = button.getAttribute('data-original-text');
+    }
+  }
+
+  // Handle Signup
+  async function handleSignup() {
+    const firstName = document.getElementById('signupFirstName').value.trim();
+    const lastName = document.getElementById('signupLastName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const dob = document.getElementById('signupDob').value;
+    const city = document.getElementById('signupCity').value.trim();
+    const country = document.getElementById('signupCountry').value;
+    const role = document.getElementById('signupRole').value;
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
+    
+    const errorDiv = document.getElementById('signupError');
+    const successDiv = document.getElementById('signupSuccess');
+    const signupBtn = document.querySelector('#signupForm .btn-primary');
+    
+    // Validation
+    if (!firstName || !lastName || !email || !dob || !city || !country || !role || !password) {
+      errorDiv.textContent = '❌ Please fill in all fields';
+      errorDiv.style.display = 'block';
+      successDiv.style.display = 'none';
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      errorDiv.textContent = '❌ Passwords do not match';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    if (password.length < 6) {
+      errorDiv.textContent = '❌ Password must be at least 6 characters';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      errorDiv.textContent = '❌ Please enter a valid email address';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    // First test connection
+    const isConnected = await testBackendConnection();
+    if (!isConnected) {
+      errorDiv.textContent = '❌ Cannot connect to server. Please make sure backend is running on port 3000';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    // Store original button text
+    signupBtn.setAttribute('data-original-text', signupBtn.innerHTML);
+    setButtonLoading(signupBtn, true);
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+    
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName, lastName, email, password, dob, city, country, role
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        successDiv.textContent = '✅ Account created successfully! Redirecting...';
+        successDiv.style.display = 'block';
+        
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1500);
+      } else {
+        errorDiv.textContent = data.error || 'Registration failed';
+        errorDiv.style.display = 'block';
+        setButtonLoading(signupBtn, false);
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      errorDiv.textContent = `❌ Cannot connect to server. Error: ${err.message}`;
+      errorDiv.style.display = 'block';
+      setButtonLoading(signupBtn, false);
+    }
+  }
+
+  // Handle Login
+  async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorDiv = document.getElementById('loginError');
+    const loginBtn = document.querySelector('#loginForm .btn-primary');
+    
+    if (!email || !password) {
+      errorDiv.textContent = '❌ Please enter email and password';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    // First test connection
+    const isConnected = await testBackendConnection();
+    if (!isConnected) {
+      errorDiv.textContent = '❌ Cannot connect to server. Please make sure backend is running on port 3000';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    
+    loginBtn.setAttribute('data-original-text', loginBtn.innerHTML);
+    setButtonLoading(loginBtn, true);
+    errorDiv.style.display = 'none';
+    
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        window.location.href = 'index.html';
+      } else {
+        errorDiv.textContent = data.error || 'Invalid credentials';
+        errorDiv.style.display = 'block';
+        setButtonLoading(loginBtn, false);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      errorDiv.textContent = `❌ Cannot connect to server. Error: ${err.message}`;
+      errorDiv.style.display = 'block';
+      setButtonLoading(loginBtn, false);
+    }
+  }
+
+  // Tab switching
+  function switchToSignup() {
+    document.querySelector('.tab-btn[data-form="signup"]').click();
+  }
+  
+  function switchToLogin() {
+    document.querySelector('.tab-btn[data-form="login"]').click();
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const formId = btn.getAttribute('data-form');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active-form'));
+      document.getElementById(formId + 'Form').classList.add('active-form');
+      
+      // Clear errors when switching tabs
+      document.getElementById('loginError').style.display = 'none';
+      document.getElementById('signupError').style.display = 'none';
+      document.getElementById('signupSuccess').style.display = 'none';
+    });
+  });
+
+  // Check if already logged in
+  if (localStorage.getItem('currentUser') && localStorage.getItem('token')) {
+    window.location.href = 'index.html';
+  }
+  
+  // Test connection on page load
+  testBackendConnection();
+  
+  // Add enter key support
+  document.getElementById('loginPassword')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('signupConfirmPassword')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSignup();
+  });
+</script>
+</body>
+</html>
