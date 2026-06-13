@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema({
 
 const storySchema = new mongoose.Schema({
   originalStory: { type: String, required: true },
- 
+  ending: { type: String, required: true },
   summary: { type: String, default: '' },
   emotions: { type: [String], default: [] },
   author: { type: String, required: true },
@@ -105,7 +105,7 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== GROQ AI ROUTE (FIXED) ==========
+// ========== GROQ AI ROUTE ==========
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 app.post('/api/generate', async (req, res) => {
@@ -135,10 +135,8 @@ app.post('/api/generate', async (req, res) => {
     });
     
     let result = completion.choices[0].message.content;
-    // Clean the response
     result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
-    // Try to extract JSON
     let endings = [];
     try {
       const jsonMatch = result.match(/\{[\s\S]*\}/);
@@ -150,12 +148,10 @@ app.post('/api/generate', async (req, res) => {
       console.log('JSON parse error, using fallback');
     }
     
-    // If no endings, create a simple one
     if (endings.length === 0) {
       endings = [{ text: result.length > 100 ? result.substring(0, 500) : "Once upon a time, the story continued beautifully. The characters grew and learned, and everyone lived happily ever after." }];
     }
     
-    // Ensure we have 5 endings
     const originalEnding = endings[0]?.text || "And they all lived happily ever after.";
     const allEndings = [
       { text: originalEnding },
@@ -170,7 +166,6 @@ app.post('/api/generate', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Groq Error:', error.message);
-    // Fallback endings
     const fallbackEndings = [];
     for (let i = 0; i < 5; i++) {
       fallbackEndings.push({
@@ -266,9 +261,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
   console.log(`📊 MongoDB Status: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
   console.log(`💾 Data will be persisted to MongoDB database\n`);
-});/ /  
- U p d a t e d  
- f o r  
- c l o u d  
- d e p l o y m e n t  
- 
+});
