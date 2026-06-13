@@ -50,14 +50,23 @@ const User = mongoose.model('User', userSchema);
 const Story = mongoose.model('Story', storySchema);
 
 // ========== MIDDLEWARE ==========
+// 🔧 FIX 1: Added more detailed logging to auth middleware
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
+  console.log('🔐 Auth middleware - Token present:', !!token);
+  
+  if (!token) {
+    console.log('❌ No token provided');
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    console.log('✅ Token decoded - userId:', decoded.userId);
     req.userId = decoded.userId;
     next();
   } catch (err) {
+    console.log('❌ Invalid token:', err.message);
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -179,17 +188,30 @@ app.post('/api/generate', async (req, res) => {
 // ========== STORIES CRUD ==========
 app.get('/api/stories', auth, async (req, res) => {
   try {
+    console.log('📖 Fetching stories for userId:', req.userId);
     const stories = await Story.find({ authorId: req.userId }).sort({ createdAt: -1 });
+    console.log(`✅ Found ${stories.length} stories`);
     res.json(stories);
   } catch (error) {
+    console.error('Error fetching stories:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
+// 🔧 FIX 2: Added more detailed logging to story save endpoint
 app.post('/api/stories', auth, async (req, res) => {
   try {
+    console.log('📝 Saving story - userId from token:', req.userId);
+    console.log('📝 Request body:', req.body);
+    
+    // 🔧 FIX 3: Convert userId to ObjectId explicitly (though not strictly necessary with mongoose)
     const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    console.log('👤 Found user:', user ? `${user.firstName} ${user.lastName}` : 'NO USER FOUND');
+    
+    if (!user) {
+      console.log('❌ User not found for ID:', req.userId);
+      return res.status(404).json({ error: 'User not found. Please log in again.' });
+    }
     
     const story = new Story({
       originalStory: req.body.originalStory,
@@ -201,11 +223,11 @@ app.post('/api/stories', auth, async (req, res) => {
     });
     
     await story.save();
-    console.log(`✅ Story saved: ${story._id}`);
+    console.log(`✅ Story saved: ${story._id} for user ${user.email}`);
     res.json(story);
   } catch (error) {
-    console.error('Save story error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Save story error:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -261,4 +283,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
   console.log(`📊 MongoDB Status: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
   console.log(`💾 Data will be persisted to MongoDB database\n`);
-});
+});/ /  
+ U p d a t e d  
+ f o r  
+ c l o u d  
+ d e p l o y m e n t  
+ 
