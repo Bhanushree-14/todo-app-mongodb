@@ -383,31 +383,29 @@
 </div>
 
 <script>
-  // Try multiple possible backend URLs
-  const BACKEND_URLS = [
-    'http://localhost:3000/api',
-    'http://127.0.0.1:3000/api',
-    'http://localhost:3001/api'
-  ];
+  // ✅ FIXED: Use relative paths instead of localhost
+  const API_BASE = '';
   
-  let API_URL = BACKEND_URLS[0];
+  // Helper function for API calls
+  async function apiCall(endpoint, options = {}) {
+    const url = `/api${endpoint}`;
+    const response = await fetch(url, options);
+    return response;
+  }
 
   // Test connection to backend
   async function testBackendConnection() {
-    for (const url of BACKEND_URLS) {
-      try {
-        const response = await fetch(`${url}/health`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (response.ok) {
-          API_URL = url;
-          console.log(`✅ Connected to backend at: ${API_URL}`);
-          return true;
-        }
-      } catch (err) {
-        console.log(`❌ Cannot connect to ${url}`);
+    try {
+      const response = await apiCall('/health', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        console.log('✅ Connected to backend successfully');
+        return true;
       }
+    } catch (err) {
+      console.log('❌ Cannot connect to backend:', err.message);
     }
     return false;
   }
@@ -469,7 +467,7 @@
     // First test connection
     const isConnected = await testBackendConnection();
     if (!isConnected) {
-      errorDiv.textContent = '❌ Cannot connect to server. Please make sure backend is running on port 3000';
+      errorDiv.textContent = '❌ Cannot connect to server. Please make sure the app is properly deployed.';
       errorDiv.style.display = 'block';
       return;
     }
@@ -481,7 +479,7 @@
     successDiv.style.display = 'none';
     
     try {
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await apiCall('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -529,7 +527,7 @@
     // First test connection
     const isConnected = await testBackendConnection();
     if (!isConnected) {
-      errorDiv.textContent = '❌ Cannot connect to server. Please make sure backend is running on port 3000';
+      errorDiv.textContent = '❌ Cannot connect to server. Please make sure the app is properly deployed.';
       errorDiv.style.display = 'block';
       return;
     }
@@ -539,7 +537,7 @@
     errorDiv.style.display = 'none';
     
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await apiCall('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
