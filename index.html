@@ -259,7 +259,8 @@
 </div>
 
 <script>
-  const API_URL = 'http://localhost:3000/api/generate';
+  // ✅ FIXED: Changed from localhost to relative path
+  const API_URL = '/api/generate';
   let selectedEmotionsArray = [];
   let currentGeneratedEndings = [];
   let currentStoryBeginning = '';
