@@ -50,23 +50,14 @@ const User = mongoose.model('User', userSchema);
 const Story = mongoose.model('Story', storySchema);
 
 // ========== MIDDLEWARE ==========
-// 🔧 FIX 1: Added more detailed logging to auth middleware
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  console.log('🔐 Auth middleware - Token present:', !!token);
-  
-  if (!token) {
-    console.log('❌ No token provided');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
+  if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    console.log('✅ Token decoded - userId:', decoded.userId);
     req.userId = decoded.userId;
     next();
   } catch (err) {
-    console.log('❌ Invalid token:', err.message);
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -158,7 +149,7 @@ app.post('/api/generate', async (req, res) => {
     }
     
     if (endings.length === 0) {
-      endings = [{ text: result.length > 100 ? result.substring(0, 500) : "Once upon a time, the story continued beautifully. The characters grew and learned, and everyone lived happily ever after." }];
+      endings = [{ text: result.length > 100 ? result.substring(0, 500) : "Once upon a time, the story continued beautifully." }];
     }
     
     const originalEnding = endings[0]?.text || "And they all lived happily ever after.";
@@ -178,7 +169,7 @@ app.post('/api/generate', async (req, res) => {
     const fallbackEndings = [];
     for (let i = 0; i < 5; i++) {
       fallbackEndings.push({
-        text: `✨ Story Continuation ✨\n\n"${story}"\n\nThis story continues with wonder and magic. The characters embarked on an incredible journey, faced challenges bravely, and discovered that the greatest treasure was the friendships they made along the way. And so, this beautiful tale came to a heartwarming conclusion. ✨`
+        text: `✨ Story Continuation ✨\n\n"${story}"\n\nThis story continues with wonder and magic.`
       });
     }
     res.json({ endings: fallbackEndings });
@@ -188,30 +179,17 @@ app.post('/api/generate', async (req, res) => {
 // ========== STORIES CRUD ==========
 app.get('/api/stories', auth, async (req, res) => {
   try {
-    console.log('📖 Fetching stories for userId:', req.userId);
     const stories = await Story.find({ authorId: req.userId }).sort({ createdAt: -1 });
-    console.log(`✅ Found ${stories.length} stories`);
     res.json(stories);
   } catch (error) {
-    console.error('Error fetching stories:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// 🔧 FIX 2: Added more detailed logging to story save endpoint
 app.post('/api/stories', auth, async (req, res) => {
   try {
-    console.log('📝 Saving story - userId from token:', req.userId);
-    console.log('📝 Request body:', req.body);
-    
-    // 🔧 FIX 3: Convert userId to ObjectId explicitly (though not strictly necessary with mongoose)
     const user = await User.findById(req.userId);
-    console.log('👤 Found user:', user ? `${user.firstName} ${user.lastName}` : 'NO USER FOUND');
-    
-    if (!user) {
-      console.log('❌ User not found for ID:', req.userId);
-      return res.status(404).json({ error: 'User not found. Please log in again.' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
     
     const story = new Story({
       originalStory: req.body.originalStory,
@@ -223,11 +201,11 @@ app.post('/api/stories', auth, async (req, res) => {
     });
     
     await story.save();
-    console.log(`✅ Story saved: ${story._id} for user ${user.email}`);
+    console.log(`✅ Story saved: ${story._id}`);
     res.json(story);
   } catch (error) {
-    console.error('❌ Save story error:', error);
-    res.status(500).json({ error: 'Server error: ' + error.message });
+    console.error('Save story error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -235,7 +213,6 @@ app.delete('/api/stories/:id', auth, async (req, res) => {
   try {
     const story = await Story.findOneAndDelete({ _id: req.params.id, authorId: req.userId });
     if (!story) return res.status(404).json({ error: 'Story not found' });
-    console.log(`✅ Story deleted: ${req.params.id}`);
     res.json({ message: 'Story deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -283,14 +260,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
   console.log(`📊 MongoDB Status: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
   console.log(`💾 Data will be persisted to MongoDB database\n`);
-}); 
- 
- U p d a t e d 
- 
- f o r 
- 
- c l o u d 
- 
- d e p l o y m e n t 
- 
- 
+});
