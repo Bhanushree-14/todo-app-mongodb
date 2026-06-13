@@ -266,4 +266,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
   console.log(`📊 MongoDB Status: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
   console.log(`💾 Data will be persisted to MongoDB database\n`);
-});
+});/ /  
+ U p d a t e d  
+ f o r  
+ c l o u d  
+ d e p l o y m e n t  
+ 
