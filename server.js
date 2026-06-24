@@ -109,10 +109,11 @@ app.get('/api/me', auth, async (req, res) => {
 });
 
 // ========== OPENROUTER HELPER (uses https module — no fetch needed) ==========
-// 'openrouter/free' is OpenRouter's built-in router that automatically picks
-// a currently-available free model for you — this avoids hardcoding a slug
-// that can go down or get renamed. We still keep a couple of known-stable
-// slugs behind it as backup in case the router itself has an issue.
+// 'openrouter/free' sometimes routes to a "thinking" model whose final
+// answer ends up in a separate `reasoning` field instead of `content`,
+// or leaks raw reasoning text into `content`. We handle both cases below,
+// and rotate through different concrete models on retry instead of
+// hammering the same flaky pick repeatedly.
 const FREE_MODELS = [
   'openrouter/free',
   'deepseek/deepseek-chat-v3-0324:free',
@@ -125,7 +126,7 @@ function callOpenRouterOnce(apiKey, model, messages, temperature) {
     const body = JSON.stringify({
       model,
       messages,
-      max_tokens: 250,
+      max_tokens: 300,
       temperature
     });
 
@@ -167,15 +168,55 @@ function callOpenRouterOnce(apiKey, model, messages, temperature) {
   });
 }
 
+// Pulls usable story text out of an OpenRouter response. Handles models
+// that put the answer in `content`, models that put it in `reasoning`
+// (thinking models with no content), and strips leaked meta-commentary
+// like "We need to write a..." that some reasoning models prepend.
+function extractText(data) {
+  const msg = data.choices?.[0]?.message;
+  if (!msg) return '';
+
+  let text = (msg.content || '').trim();
+
+  // Some thinking models leave content empty and put everything in reasoning.
+  if (!text && msg.reasoning) {
+    text = msg.reasoning.trim();
+  }
+
+  if (!text) return '';
+
+  // Strip leaked planning/meta-commentary lines some models prepend,
+  // e.g. "We need to write a happy story continuation..."
+  const metaPatterns = [
+    /^we need to[^.]*\.\s*/i,
+    /^okay,?\s*/i,
+    /^sure,?\s*/i,
+    /^here'?s?\s+(the|a|your)[^.:]*[.:]\s*/i,
+    /^continuation:\s*/i
+  ];
+  for (const pattern of metaPatterns) {
+    text = text.replace(pattern, '');
+  }
+
+  return text.trim();
+}
+
 // Tries each model in FREE_MODELS in order. Falls through to the next model
-// on 404 (model unavailable) or 429 (rate-limited), since both mean this
-// particular model/provider can't serve the request right now.
+// on 404 (model unavailable), 429 (rate-limited), or an empty/unusable
+// response, since all three mean this particular model/provider isn't
+// giving us a usable story right now.
 async function callOpenRouter(apiKey, messages, temperature) {
   let lastError;
   for (const model of FREE_MODELS) {
     try {
       console.log('🤖 Trying model:', model);
-      return await callOpenRouterOnce(apiKey, model, messages, temperature);
+      const data = await callOpenRouterOnce(apiKey, model, messages, temperature);
+      const text = extractText(data);
+      if (text && text.length >= 5) {
+        return text;
+      }
+      console.warn('⚠️ Model returned unusable/empty text:', model);
+      lastError = new Error('Empty or unusable response from ' + model);
     } catch (err) {
       lastError = err;
       console.warn('⚠️ Model failed:', model, '-', err.message);
@@ -210,7 +251,7 @@ app.post('/api/generate', async (req, res) => {
     const messages = [
       {
         role: 'system',
-        content: `You are a creative story writer. Write ONLY a ${emotionText} story continuation of 100-150 words. Do NOT repeat the story beginning. Do NOT add labels or prefixes. Write naturally.`
+        content: `You are a creative story writer. Write ONLY a ${emotionText} story continuation of 100-150 words. Do NOT repeat the story beginning. Do NOT add labels, prefixes, or explanations of what you are about to write. Output only the story continuation itself, nothing else.`
       },
       {
         role: 'user',
@@ -218,25 +259,20 @@ app.post('/api/generate', async (req, res) => {
       }
     ];
 
-    // Retry up to 3 attempts if the model returns an empty response —
-    // this happens occasionally with free models and isn't worth failing on.
+    // Retry a few times — each attempt walks through FREE_MODELS again,
+    // and callOpenRouter already skips models that fail or return junk.
     let lastErr;
     for (let attempt = 1; attempt <= 3; attempt++) {
       console.log('📤 Calling OpenRouter for ending', num, '(attempt', attempt + ')');
       try {
-        const data = await callOpenRouter(OPENROUTER_API_KEY, messages, 0.7 + num * 0.08);
-        const text = data.choices?.[0]?.message?.content?.trim();
-        if (text) {
-          console.log('✅ Ending', num, 'received:', text.substring(0, 60) + '...');
-          return { text };
-        }
-        lastErr = new Error('Empty response for ending ' + num);
-        console.warn('⚠️ Empty response for ending', num, '- retrying...');
+        const text = await callOpenRouter(OPENROUTER_API_KEY, messages, 0.7 + num * 0.08);
+        console.log('✅ Ending', num, 'received:', text.substring(0, 60) + '...');
+        return { text };
       } catch (err) {
         lastErr = err;
         console.warn('⚠️ Attempt', attempt, 'failed for ending', num, '-', err.message);
       }
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1200));
     }
     throw lastErr;
   }
