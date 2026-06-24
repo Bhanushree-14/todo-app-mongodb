@@ -218,12 +218,27 @@ app.post('/api/generate', async (req, res) => {
       }
     ];
 
-    console.log('📤 Calling OpenRouter for ending', num);
-    const data = await callOpenRouter(OPENROUTER_API_KEY, messages, 0.7 + num * 0.08);
-    const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('Empty response for ending ' + num);
-    console.log('✅ Ending', num, 'received:', text.substring(0, 60) + '...');
-    return { text };
+    // Retry up to 3 attempts if the model returns an empty response —
+    // this happens occasionally with free models and isn't worth failing on.
+    let lastErr;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log('📤 Calling OpenRouter for ending', num, '(attempt', attempt + ')');
+      try {
+        const data = await callOpenRouter(OPENROUTER_API_KEY, messages, 0.7 + num * 0.08);
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (text) {
+          console.log('✅ Ending', num, 'received:', text.substring(0, 60) + '...');
+          return { text };
+        }
+        lastErr = new Error('Empty response for ending ' + num);
+        console.warn('⚠️ Empty response for ending', num, '- retrying...');
+      } catch (err) {
+        lastErr = err;
+        console.warn('⚠️ Attempt', attempt, 'failed for ending', num, '-', err.message);
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    throw lastErr;
   }
 
   try {
