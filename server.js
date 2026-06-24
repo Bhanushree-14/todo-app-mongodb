@@ -105,7 +105,7 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== GROQ AI ROUTE - DEMO VERSION ==========
+// ========== GROQ AI ROUTE - USING WORKING MODEL ==========
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 console.log('🔑 Groq API Key:', process.env.GROQ_API_KEY ? '✅ Loaded' : '❌ MISSING');
@@ -120,10 +120,10 @@ app.post('/api/generate', async (req, res) => {
   }
   
   try {
-    console.log('📤 Calling Groq API...');
+    console.log('📤 Calling Groq API with llama-3.1-8b-instant...');
     
     const completion = await groq.chat.completions.create({
-      model: 'llama3-70b-8192',  // Smaller, more stable model
+      model: 'llama-3.1-8b-instant',  // ✅ WORKING MODEL - Fast and reliable
       messages: [
         { 
           role: 'system', 
