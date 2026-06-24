@@ -168,10 +168,35 @@ function callOpenRouterOnce(apiKey, model, messages, temperature) {
   });
 }
 
+// Heuristics that flag raw chain-of-thought / internal monologue leaking
+// into the output, e.g. "Let's see. The user wants me to...", "Wait, the
+// user said...". This kind of text is not salvageable by trimming a
+// prefix — the whole response is reasoning, not a story — so we reject
+// it outright and let the caller try the next model instead.
+function looksLikeReasoningLeak(text) {
+  const sample = text.slice(0, 220).toLowerCase();
+  const reasoningSignals = [
+    'let\'s see',
+    'the user wants',
+    'the user said',
+    'wait, ',
+    'wait the user',
+    'i need to',
+    'maybe the user',
+    'so the user',
+    'the instruction says',
+    'we need to',
+    'okay, the user',
+    'let me think',
+    'first, i need'
+  ];
+  return reasoningSignals.some(signal => sample.includes(signal));
+}
+
 // Pulls usable story text out of an OpenRouter response. Handles models
 // that put the answer in `content`, models that put it in `reasoning`
-// (thinking models with no content), and strips leaked meta-commentary
-// like "We need to write a..." that some reasoning models prepend.
+// (thinking models with no content), strips a few common short leaked
+// prefixes, and rejects responses that are pure internal monologue.
 function extractText(data) {
   const msg = data.choices?.[0]?.message;
   if (!msg) return '';
@@ -185,10 +210,8 @@ function extractText(data) {
 
   if (!text) return '';
 
-  // Strip leaked planning/meta-commentary lines some models prepend,
-  // e.g. "We need to write a happy story continuation..."
+  // Strip short leaked prefixes some models prepend before the real story.
   const metaPatterns = [
-    /^we need to[^.]*\.\s*/i,
     /^okay,?\s*/i,
     /^sure,?\s*/i,
     /^here'?s?\s+(the|a|your)[^.:]*[.:]\s*/i,
@@ -197,8 +220,15 @@ function extractText(data) {
   for (const pattern of metaPatterns) {
     text = text.replace(pattern, '');
   }
+  text = text.trim();
 
-  return text.trim();
+  // If what's left is clearly raw reasoning rather than a story, reject it
+  // entirely rather than returning it to the user.
+  if (looksLikeReasoningLeak(text)) {
+    return '';
+  }
+
+  return text;
 }
 
 // Tries each model in FREE_MODELS in order. Falls through to the next model
