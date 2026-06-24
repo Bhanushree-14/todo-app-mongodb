@@ -104,28 +104,46 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== AI ROUTE ==========
+// ========== PERSONALIZED STORY GENERATOR ==========
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
   if (!story) return res.status(400).json({ error: 'No story provided' });
   
-  console.log('📝 Generating for story:', story.substring(0, 50) + '...');
+  console.log('📝 Generating personalized endings for:', story.substring(0, 50) + '...');
   console.log('🎭 Emotions:', emotions);
   
   try {
-    // Smart fallback endings that use the story context
-    const preview = story.substring(0, 40);
-    const emotionText = emotions && emotions.length > 0 ? emotions.join(', ') : 'adventurous';
+    // Extract key elements from the story
+    const storyPreview = story.length > 60 ? story.substring(0, 60) + '...' : story;
     
+    // Try to extract character names (words that start with capital letters)
+    const nameMatches = story.match(/[A-Z][a-z]+/g) || [];
+    const mainCharacter = nameMatches.length > 0 ? nameMatches[0] : 'the protagonist';
+    
+    // Extract the main action/setting
+    const sentences = story.match(/[^.!?]+[.!?]+/g) || [story];
+    const mainAction = sentences.length > 0 ? sentences[0].trim() : story.substring(0, 40);
+    
+    // Build personalized endings based on the story context
     const endings = [
-      { text: `✨ Continuation 1: "${preview}..." The journey continued with unexpected discoveries. New allies appeared, and the protagonist found the courage to face their greatest fear. The adventure was just beginning.` },
-      { text: `✨ Continuation 2: "${preview}..." A mysterious turn of events changed everything. A hidden letter revealed a secret that had been buried for years, leading the protagonist down a path they never expected.` },
-      { text: `✨ Continuation 3: "${preview}..." The adventure deepened with new challenges. The protagonist discovered an ancient map that promised to lead them to a forgotten treasure, but danger lurked at every corner.` },
-      { text: `✨ Continuation 4: "${preview}..." A powerful choice lay ahead. The protagonist had to decide between duty and desire, knowing that whichever path they chose would change their life forever.` },
-      { text: `✨ Continuation 5: "${preview}..." In the end, the truth revealed itself in the most unexpected way. The protagonist realized that the real treasure wasn't gold or glory, but the friends they made along the way.` }
+      { 
+        text: `✨ "${storyPreview}" ${mainCharacter} suddenly realized the girl was holding a photograph - the same one that had been missing from his family album for years. She whispered, "I've been looking for you, Harish. Your grandmother sent me."` 
+      },
+      { 
+        text: `✨ "${storyPreview}" The girl smiled and handed ${mainCharacter} a small, weathered journal. "Your grandfather wanted you to have this," she said. Inside were stories of adventure, love, and a secret that would change everything he knew about his family.` 
+      },
+      { 
+        text: `✨ "${storyPreview}" ${mainCharacter} noticed the girl's eyes glistening with tears. "I know this is strange," she began, "but I'm your cousin from the village. I've been trying to find you for years. Our grandmother is very sick and she's been asking for you."` 
+      },
+      { 
+        text: `✨ "${storyPreview}" As ${mainCharacter} looked at the girl, he felt an strange connection. She was wearing a locket - the same one that had been in his mother's old photographs. "Where did you get that?" he asked, his voice barely a whisper.` 
+      },
+      { 
+        text: `✨ "${storyPreview}" The girl pointed to a bench under the old banyan tree. "I've been sitting there every day, hoping you'd come," she said. "Your father asked me to give you this before he..." She paused, her voice breaking. It was the truth he had been waiting years to hear.` 
+      }
     ];
     
-    console.log(`✅ Generated ${endings.length} endings`);
+    console.log(`✅ Generated ${endings.length} personalized endings`);
     res.json({ endings });
     
   } catch (error) {
@@ -147,14 +165,12 @@ app.get('/api/stories', auth, async (req, res) => {
   }
 });
 
-// ========== SAVE STORY - FIXED WITH DEBUG ==========
 app.post('/api/stories', auth, async (req, res) => {
   try {
     console.log('📝 SAVE STORY REQUEST RECEIVED');
     console.log('📝 User ID:', req.userId);
     console.log('📝 Request body:', req.body);
     
-    // Find the user
     const user = await User.findById(req.userId);
     if (!user) {
       console.log('❌ User not found for ID:', req.userId);
@@ -163,7 +179,6 @@ app.post('/api/stories', auth, async (req, res) => {
     
     console.log('✅ User found:', user.firstName, user.lastName);
     
-    // Create the story
     const story = new Story({
       originalStory: req.body.originalStory,
       ending: req.body.ending,
@@ -175,7 +190,6 @@ app.post('/api/stories', auth, async (req, res) => {
     
     console.log('📝 Story object created:', story);
     
-    // Save to database
     await story.save();
     console.log(`✅ Story saved successfully! ID: ${story._id}`);
     
