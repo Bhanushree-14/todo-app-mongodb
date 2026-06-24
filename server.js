@@ -105,7 +105,7 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== GROQ AI ROUTE - FIXED TO GENERATE 5 DIFFERENT ENDINGS ==========
+// ========== GROQ AI ROUTE - FINAL WORKING VERSION ==========
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 app.post('/api/generate', async (req, res) => {
@@ -118,32 +118,38 @@ app.post('/api/generate', async (req, res) => {
   }
   
   try {
-    // 🔥 FIX: Ask AI to generate 5 different endings in ONE request
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         { 
           role: 'system', 
-          content: `You are a creative story writer. Generate 5 COMPLETELY DIFFERENT story endings for the user's story. Each ending should be unique with different plot twists, character decisions, or outcomes. Make them diverse in style and direction.
+          content: `You are a professional story writer. Your task is to CONTINUE the story from where the user left off.
+
+Generate 5 COMPLETELY DIFFERENT story continuations. Each continuation should:
+- Start from where the user's story ends
+- Be 150-250 words long (detailed and descriptive)
+- Have unique plot twists, character development, or outcomes
+- Be engaging and immersive
+- NOT repeat the user's original story
 
 Return ONLY valid JSON format:
 {"endings":[
-  {"text": "Ending 1 text here..."},
-  {"text": "Ending 2 text here..."},
-  {"text": "Ending 3 text here..."},
-  {"text": "Ending 4 text here..."},
-  {"text": "Ending 5 text here..."}
+  {"text": "Continuation 1: [your detailed continuation here]"},
+  {"text": "Continuation 2: [your detailed continuation here]"},
+  {"text": "Continuation 3: [your detailed continuation here]"},
+  {"text": "Continuation 4: [your detailed continuation here]"},
+  {"text": "Continuation 5: [your detailed continuation here]"}
 ]}
 
-Each ending should be 50-80 words long.`
+Each continuation must be 150-250 words long.`
         },
         { 
           role: 'user', 
-          content: `Story: "${story}"\n\nGenerate 5 different endings for this story. ${emotionGuide}` 
+          content: `Continue this story from where it ends: "${story}"\n${emotionGuide}\n\nGive me 5 different, detailed continuations (150-250 words each). Do NOT repeat the original story.` 
         }
       ],
       temperature: 0.9,
-      max_tokens: 2000
+      max_tokens: 3000
     });
     
     let result = completion.choices[0].message.content;
@@ -160,34 +166,37 @@ Each ending should be 50-80 words long.`
       console.log('JSON parse error:', e.message);
     }
     
-    // If AI returned less than 5, pad with creative fallbacks
-    while (endings.length < 5) {
-      const fallbackIndex = endings.length;
-      const fallbacks = [
-        `✨ Ending ${fallbackIndex+1}: The journey came to a beautiful close as ${story.substring(0, 30)} found peace and happiness.`,
-        `✨ Ending ${fallbackIndex+1}: A surprising twist changed everything for ${story.substring(0, 30)} forever.`,
-        `✨ Ending ${fallbackIndex+1}: ${story.substring(0, 30)} discovered that the real treasure was friendship all along.`,
-        `✨ Ending ${fallbackIndex+1}: The adventure continued as ${story.substring(0, 30)} set off on a new quest.`,
-        `✨ Ending ${fallbackIndex+1}: In the end, ${story.substring(0, 30)} learned a valuable lesson about courage.`
+    // Only use fallback if AI returns nothing
+    if (endings.length === 0) {
+      console.log('⚠️ AI returned no endings, using fallback');
+      const fallbackEndings = [
+        { text: `Continuation 1: The journey continued with unexpected discoveries and challenges along the way.` },
+        { text: `Continuation 2: A mysterious turn of events changed everything for the protagonist.` },
+        { text: `Continuation 3: The adventure deepened with new allies and enemies.` },
+        { text: `Continuation 4: A powerful choice lay ahead that would determine everything.` },
+        { text: `Continuation 5: The truth revealed itself in the most unexpected way.` }
       ];
-      endings.push({ text: fallbacks[fallbackIndex] });
+      endings = fallbackEndings;
     }
     
-    // Ensure we only return 5 endings
-    const finalEndings = endings.slice(0, 5);
+    // Ensure we have exactly 5 endings
+    while (endings.length < 5) {
+      const lastEnding = endings[endings.length - 1]?.text || "The story continued with wonder and magic.";
+      endings.push({ text: lastEnding + " The adventure continued in unexpected ways." });
+    }
     
-    console.log(`✅ Generated ${finalEndings.length} different endings`);
+    const finalEndings = endings.slice(0, 5);
+    console.log(`✅ Generated ${finalEndings.length} continuations`);
     res.json({ endings: finalEndings });
     
   } catch (error) {
     console.error('❌ Groq Error:', error.message);
-    // Fallback: 5 creative different endings
     const fallbackEndings = [
-      { text: `✨ Ending 1: "${story}" - The hero discovered a hidden treasure and lived happily ever after.` },
-      { text: `✨ Ending 2: "${story}" - A mysterious stranger appeared and changed everything.` },
-      { text: `✨ Ending 3: "${story}" - The characters learned a valuable lesson about friendship.` },
-      { text: `✨ Ending 4: "${story}" - An unexpected adventure took them to a magical land.` },
-      { text: `✨ Ending 5: "${story}" - In the end, they realized the journey was the real treasure.` }
+      { text: `Continuation 1: The journey continued with unexpected discoveries.` },
+      { text: `Continuation 2: A mysterious turn of events changed everything.` },
+      { text: `Continuation 3: The adventure deepened with new challenges.` },
+      { text: `Continuation 4: A powerful choice lay ahead.` },
+      { text: `Continuation 5: The truth revealed itself.` }
     ];
     res.json({ endings: fallbackEndings });
   }
