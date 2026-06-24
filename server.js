@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const path = require('path');
+const https = require('https');
 
 const app = express();
 app.use(cors());
@@ -15,7 +16,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
-// ========== MONGODB CONNECTION ==========
+// ========== MONGODB ==========
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/storyweaver';
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB Connected'))
@@ -66,7 +67,6 @@ app.post('/api/register', async (req, res) => {
     const { firstName, lastName, email, password, city, country, role } = req.body;
     if (await User.findOne({ email }))
       return res.status(400).json({ error: 'User already exists' });
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       firstName, lastName, email,
@@ -76,7 +76,6 @@ app.post('/api/register', async (req, res) => {
       avatar: firstName.charAt(0).toUpperCase()
     });
     await user.save();
-
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, firstName, lastName, email, fullName: `${firstName} ${lastName}`, avatar: user.avatar } });
   } catch (error) {
@@ -91,7 +90,6 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user || !(await bcrypt.compare(password, user.password)))
       return res.status(401).json({ error: 'Invalid credentials' });
-
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email, fullName: `${user.firstName} ${user.lastName}`, avatar: user.avatar } });
   } catch (error) {
@@ -110,96 +108,99 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== AI STORY GENERATION (OpenRouter) ==========
+// ========== OPENROUTER HELPER (uses https module — no fetch needed) ==========
+function callOpenRouter(apiKey, messages, temperature) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model: 'mistralai/mistral-7b-instruct:free',
+      messages,
+      max_tokens: 250,
+      temperature
+    });
+
+    const options = {
+      hostname: 'openrouter.ai',
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'HTTP-Referer': 'https://storyweaver-ai.onrender.com',
+        'X-Title': 'StoryWeaver AI'
+      }
+    };
+
+    const req = https.request(options, (resp) => {
+      let raw = '';
+      resp.on('data', chunk => raw += chunk);
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(raw);
+          if (resp.statusCode !== 200) {
+            reject(new Error('OpenRouter ' + resp.statusCode + ': ' + JSON.stringify(parsed)));
+          } else {
+            resolve(parsed);
+          }
+        } catch (e) {
+          reject(new Error('Parse error: ' + raw.substring(0, 200)));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// ========== AI STORY GENERATION ==========
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
   if (!story) return res.status(400).json({ error: 'No story provided' });
 
-  // ---- DEBUG: print ALL env var keys so we can see exact names on Render ----
-  console.log('🔑 Available env keys:', Object.keys(process.env).filter(k =>
-    k.toLowerCase().includes('open') ||
-    k.toLowerCase().includes('router') ||
-    k.toLowerCase().includes('hugging') ||
-    k.toLowerCase().includes('api')
-  ));
+  // Sanitize key — strip all whitespace, newlines, quotes
+  const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').replace(/[\r\n\t\s'"]/g, '');
 
-  // Try every possible variable name the user might have set
-  const OPENROUTER_API_KEY =
-    process.env.OPENROUTER_API_KEY ||
-    process.env.OPENROUTER_KEY ||
-    process.env.OPEN_ROUTER_API_KEY ||
-    process.env.openrouter_api_key ||
-    process.env.OPENROUTERAPIKEY;
+  console.log('🔑 Key length:', OPENROUTER_API_KEY.length);
+  console.log('🔑 Key starts with:', OPENROUTER_API_KEY.substring(0, 10));
 
-  console.log('🔑 OpenRouter key found:', OPENROUTER_API_KEY ? 'YES ✅ (starts with: ' + OPENROUTER_API_KEY.substring(0, 8) + '...)' : 'NO ❌');
-
-  if (!OPENROUTER_API_KEY) {
-    console.error('❌ No OpenRouter API key found in environment');
-    return res.status(500).json({ error: 'AI service not configured. Please check your OPENROUTER_API_KEY in Render environment.' });
+  if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.length < 10) {
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY missing or invalid.' });
   }
 
   const emotionText = emotions?.join(', ') || 'general';
-  console.log('📝 Generating endings for:', story.substring(0, 60) + '...');
+  console.log('📝 Story:', story.substring(0, 60) + '...');
   console.log('🎭 Genres:', emotionText);
 
-  // Generate one ending via OpenRouter
-  async function generateEnding(endingNumber) {
-    const systemPrompt = `You are a creative story writer. Your job is to write compelling story continuations. 
-Write ONLY the continuation text (100-150 words). Do NOT repeat the story beginning. 
-Do NOT add labels like "Ending 1:" or "Continuation:". Just write the story directly.
-The tone should be: ${emotionText}.`;
-
-    const userPrompt = `Here is the beginning of a story. Write a unique continuation #${endingNumber} for it:
-
-"${story}"
-
-Write the continuation now:`;
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://storyweaver-ai.onrender.com',
-        'X-Title': 'StoryWeaver AI'
+  async function generateEnding(num) {
+    const messages = [
+      {
+        role: 'system',
+        content: `You are a creative story writer. Write ONLY a ${emotionText} story continuation of 100-150 words. Do NOT repeat the story beginning. Do NOT add labels or prefixes. Write naturally.`
       },
-      body: JSON.stringify({
-        model: 'mistralai/mistral-7b-instruct:free',  // Free model on OpenRouter
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt }
-        ],
-        max_tokens: 250,
-        temperature: 0.75 + (endingNumber * 0.05)   // Slight variation per ending
-      })
-    });
+      {
+        role: 'user',
+        content: `Continue this story (write variation ${num}, make it unique and different from other variations):\n\n"${story}"\n\nContinuation:`
+      }
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`❌ OpenRouter error (ending ${endingNumber}):`, errText);
-      throw new Error(`OpenRouter API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log(`✅ Ending ${endingNumber} raw response:`, JSON.stringify(data).substring(0, 150));
-
+    console.log('📤 Calling OpenRouter for ending', num);
+    const data = await callOpenRouter(OPENROUTER_API_KEY, messages, 0.7 + num * 0.08);
     const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error(`Empty response for ending ${endingNumber}`);
-
+    if (!text) throw new Error('Empty response for ending ' + num);
+    console.log('✅ Ending', num, 'received:', text.substring(0, 60) + '...');
     return { text };
   }
 
   try {
-    // Generate 3 endings in parallel
     const endings = await Promise.all([
       generateEnding(1),
       generateEnding(2),
       generateEnding(3)
     ]);
-
-    console.log(`✅ Generated ${endings.length} endings successfully`);
+    console.log('✅ All 3 endings generated successfully');
     res.json({ endings });
-
   } catch (error) {
     console.error('❌ Generation error:', error.message);
     res.status(500).json({ error: 'AI generation failed: ' + error.message });
@@ -210,10 +211,9 @@ Write the continuation now:`;
 app.get('/api/stories', auth, async (req, res) => {
   try {
     const stories = await Story.find({ authorId: req.userId }).sort({ createdAt: -1 });
-    console.log(`📚 Found ${stories.length} stories for user ${req.userId}`);
+    console.log('📚 Found', stories.length, 'stories for user', req.userId);
     res.json(stories);
   } catch (error) {
-    console.error('Fetch stories error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -237,9 +237,8 @@ app.post('/api/stories', auth, async (req, res) => {
     });
 
     await story.save();
-    console.log(`✅ Story saved! ID: ${story._id}`);
+    console.log('✅ Story saved! ID:', story._id);
     res.json(story);
-
   } catch (error) {
     console.error('❌ Save story error:', error);
     res.status(500).json({ error: 'Server error: ' + error.message });
@@ -268,28 +267,28 @@ app.delete('/api/stories/:id', auth, async (req, res) => {
     console.log('✅ Story deleted:', req.params.id);
     res.json({ message: 'Deleted' });
   } catch (error) {
-    console.error('Delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// ========== HEALTH CHECK ==========
+// ========== HEALTH ==========
 app.get('/api/health', async (req, res) => {
   const userCount  = await User.countDocuments();
   const storyCount = await Story.countDocuments();
+  const keySet = !!(process.env.OPENROUTER_API_KEY || '').replace(/[\r\n\s]/g, '');
   res.json({
     status: 'ok',
-    users:  userCount,
+    users: userCount,
     stories: storyCount,
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    openrouter_configured: !!process.env.OPENROUTER_API_KEY,
-    hf_configured: !!process.env.HUGGINGFACE_API_KEY
+    openrouter_key_set: keySet
   });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ STORYWEAVER AI RUNNING ON PORT ${PORT}`);
-  console.log(`🤖 OpenRouter: ${process.env.OPENROUTER_API_KEY ? 'Configured ✅' : 'NOT SET ❌'}`);
-  console.log(`🗄️  MongoDB:    ${MONGODB_URI.includes('localhost') ? 'Local' : 'Atlas ✅'}`);
+  const keySet = !!(process.env.OPENROUTER_API_KEY || '').replace(/[\r\n\s]/g, '');
+  console.log('\n✅ STORYWEAVER AI RUNNING ON PORT', PORT);
+  console.log('🤖 OpenRouter Key:', keySet ? 'SET ✅' : 'MISSING ❌');
+  console.log('🗄️  MongoDB:', MONGODB_URI.includes('localhost') ? 'Local' : 'Atlas ✅');
 });
