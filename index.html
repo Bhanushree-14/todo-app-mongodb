@@ -157,22 +157,18 @@
       gap: 10px;
       flex-wrap: wrap;
     }
-    .view-story-btn {
-      background: #6c63ff;
-      border: none;
+    .story-card .actions button {
       padding: 0.4rem 1.2rem;
+      border: none;
       border-radius: 2rem;
       cursor: pointer;
       color: white;
+      font-size: 0.85rem;
     }
-    .delete-story {
-      background: #e74c3c;
-      border: none;
-      padding: 0.4rem 1.2rem;
-      border-radius: 2rem;
-      cursor: pointer;
-      color: white;
-    }
+    .view-story-btn { background: #6c63ff; }
+    .edit-story-btn { background: #f39c12; }
+    .delete-story { background: #e74c3c; }
+    .speak-btn { background: #1abc9c; }
     
     .loading { text-align: center; padding: 2rem; }
     .spinner {
@@ -211,7 +207,7 @@
     }
     
     /* Modal */
-    #storyModal {
+    #storyModal, #editModal {
       display: none;
       position: fixed;
       top: 0; left: 0;
@@ -221,7 +217,7 @@
       justify-content: center;
       align-items: center;
     }
-    #storyModal .modal-content {
+    #storyModal .modal-content, #editModal .modal-content {
       background: #1a1c3b;
       border-radius: 2rem;
       padding: 2rem;
@@ -231,13 +227,34 @@
       overflow-y: auto;
       border: 1px solid #6c63ff;
     }
-    #storyModal .modal-content .close-btn {
+    #storyModal .modal-content .close-btn,
+    #editModal .modal-content .close-btn {
       background: #e74c3c;
       border: none;
       padding: 0.5rem 1rem;
       border-radius: 2rem;
       cursor: pointer;
       color: white;
+    }
+    #editModal .modal-content textarea {
+      width: 100%;
+      background: rgba(10, 12, 28, 0.8);
+      border: 1px solid rgba(108, 99, 255, 0.4);
+      border-radius: 1rem;
+      padding: 1rem;
+      color: white;
+      min-height: 200px;
+      font-size: 1rem;
+    }
+    #editModal .modal-content .save-edit-btn {
+      background: #28a745;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 2rem;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 1rem;
     }
     
     @media (max-width: 600px) {
@@ -323,13 +340,24 @@
       <button class="close-btn" onclick="closeModal()">✖ Close</button>
     </div>
     <hr style="margin:1rem 0; border-color:#6c63ff;">
-    <p><strong>📝 Original Story:</strong></p>
-    <p id="modalOriginalStory" style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:1rem; margin:0.5rem 0;"></p>
-    <p><strong>✨ AI Ending:</strong></p>
-    <p id="modalEnding" style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:1rem; margin:0.5rem 0;"></p>
+    <p id="modalFullStory" style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:1rem; margin:0.5rem 0; white-space:pre-wrap;"></p>
     <p><strong>👤 Author:</strong> <span id="modalAuthor"></span></p>
     <p><strong>📅 Date:</strong> <span id="modalDate"></span></p>
     <p><strong>🎭 Emotions:</strong> <span id="modalEmotions"></span></p>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal">
+  <div class="modal-content">
+    <div class="flex-between">
+      <h3 style="color:#f39c12;">✏️ Edit Story</h3>
+      <button class="close-btn" onclick="closeEditModal()">✖ Close</button>
+    </div>
+    <hr style="margin:1rem 0; border-color:#f39c12;">
+    <textarea id="editStoryContent"></textarea>
+    <input type="hidden" id="editStoryId">
+    <button class="save-edit-btn" onclick="saveEditedStory()">💾 Save Changes</button>
   </div>
 </div>
 
@@ -344,6 +372,7 @@ const API_URL = '/api/generate';
 // ============================================================
 let selectedEmotionsArray = [];
 let currentStoryBeginning = '';
+let currentStories = [];
 
 // ============================================================
 // ========== TOKEN MANAGEMENT ==========
@@ -375,11 +404,11 @@ async function loadStoriesFromBackend() {
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to load stories');
+      throw new Error('Failed to load stories');
     }
     
     const stories = await response.json();
+    currentStories = stories;
     console.log('📚 Loaded', stories.length, 'stories');
     return stories;
   } catch (error) {
@@ -389,7 +418,7 @@ async function loadStoriesFromBackend() {
 }
 
 // ============================================================
-// ========== RENDER LIBRARY (DISPLAY STORIES) ==========
+// ========== RENDER LIBRARY ==========
 // ============================================================
 async function renderLibrary() {
   const container = document.getElementById('libraryContainer');
@@ -407,7 +436,9 @@ async function renderLibrary() {
     return;
   }
   
-  container.innerHTML = stories.map(story => `
+  container.innerHTML = stories.map(story => {
+    const fullText = story.originalStory + ' ' + story.ending;
+    return `
     <div class="story-card" data-id="${story._id}">
       <div class="flex-between">
         <h3>📘 ${escapeHtml(story.originalStory?.substring(0, 50) || 'Untitled')}...</h3>
@@ -415,19 +446,21 @@ async function renderLibrary() {
       </div>
       <p style="font-size:0.85rem; margin:0.5rem 0;">📅 ${new Date(story.createdAt).toLocaleString()}</p>
       <p><strong>Author:</strong> ${escapeHtml(story.author)}</p>
-      <p><strong>Ending preview:</strong> ${escapeHtml(story.ending?.substring(0, 120) || '')}...</p>
+      <p style="font-size:0.9rem; opacity:0.8;">${escapeHtml(fullText.substring(0, 150))}...</p>
       <div class="actions">
-        <button class="view-story-btn" onclick='viewStory("${story._id}")'>📖 View Full</button>
+        <button class="view-story-btn" onclick='viewFullStory("${story._id}")'>📖 View</button>
+        <button class="speak-btn" onclick='speakStory("${story._id}")'>🔊 Listen</button>
+        <button class="edit-story-btn" onclick='openEditModal("${story._id}")'>✏️ Edit</button>
         <button class="delete-story" onclick='deleteStory("${story._id}")'>🗑️ Delete</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // ============================================================
 // ========== VIEW FULL STORY ==========
 // ============================================================
-async function viewStory(storyId) {
+async function viewFullStory(storyId) {
   const stories = await loadStoriesFromBackend();
   const story = stories.find(s => s._id === storyId);
   
@@ -436,9 +469,10 @@ async function viewStory(storyId) {
     return;
   }
   
+  const fullText = story.originalStory + '\n\n' + story.ending;
+  
   document.getElementById('modalTitle').textContent = `📖 Story from ${new Date(story.createdAt).toLocaleDateString()}`;
-  document.getElementById('modalOriginalStory').textContent = story.originalStory || 'No original story';
-  document.getElementById('modalEnding').textContent = story.ending || 'No ending';
+  document.getElementById('modalFullStory').textContent = fullText;
   document.getElementById('modalAuthor').textContent = story.author || 'Unknown';
   document.getElementById('modalDate').textContent = new Date(story.createdAt).toLocaleString();
   document.getElementById('modalEmotions').textContent = story.emotions?.join(', ') || 'None';
@@ -447,6 +481,110 @@ async function viewStory(storyId) {
 
 function closeModal() {
   document.getElementById('storyModal').style.display = 'none';
+}
+
+// ============================================================
+// ========== SPEAK STORY (TEXT-TO-SPEECH) ==========
+// ============================================================
+async function speakStory(storyId) {
+  const stories = await loadStoriesFromBackend();
+  const story = stories.find(s => s._id === storyId);
+  
+  if (!story) {
+    alert('Story not found!');
+    return;
+  }
+  
+  const fullText = story.originalStory + ' ' + story.ending;
+  
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(fullText);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    // Try to find a female voice
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google UK') || v.name.includes('Samantha'));
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
+    
+    window.speechSynthesis.speak(utterance);
+    
+    // Change button temporarily
+    const btns = document.querySelectorAll('.speak-btn');
+    btns.forEach(btn => {
+      if (btn.getAttribute('onclick').includes(storyId)) {
+        btn.textContent = '🔊 Playing...';
+        setTimeout(() => { btn.textContent = '🔊 Listen'; }, 5000);
+      }
+    });
+  } else {
+    alert('Text-to-speech is not supported in your browser.');
+  }
+}
+
+// ============================================================
+// ========== EDIT STORY ==========
+// ============================================================
+function openEditModal(storyId) {
+  const story = currentStories.find(s => s._id === storyId);
+  if (!story) {
+    alert('Story not found!');
+    return;
+  }
+  
+  const fullText = story.originalStory + '\n\n' + story.ending;
+  document.getElementById('editStoryContent').value = fullText;
+  document.getElementById('editStoryId').value = storyId;
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+async function saveEditedStory() {
+  const storyId = document.getElementById('editStoryId').value;
+  const newContent = document.getElementById('editStoryContent').value;
+  
+  if (!newContent.trim()) {
+    alert('Story cannot be empty!');
+    return;
+  }
+  
+  // Split into original story and ending
+  const parts = newContent.split('\n\n');
+  const originalStory = parts[0] || '';
+  const ending = parts.slice(1).join('\n\n') || '';
+  
+  const token = getToken();
+  try {
+    const response = await fetch(`/api/stories/${storyId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        originalStory: originalStory,
+        ending: ending
+      })
+    });
+    
+    if (!response.ok) throw new Error('Failed to update story');
+    
+    alert('✅ Story updated successfully!');
+    closeEditModal();
+    renderLibrary();
+  } catch (error) {
+    console.error('Update error:', error);
+    alert('Failed to update story: ' + error.message);
+  }
 }
 
 // ============================================================
@@ -465,7 +603,7 @@ async function deleteStory(storyId) {
     if (!response.ok) throw new Error('Failed to delete');
     
     console.log('✅ Story deleted');
-    await renderLibrary(); // Refresh the library
+    await renderLibrary();
   } catch (error) {
     console.error('Delete error:', error);
     alert('Failed to delete story');
@@ -663,9 +801,6 @@ async function loadProfile() {
   }
 }
 
-// ============================================================
-// ========== LOAD STORY STATS ==========
-// ============================================================
 async function loadStoryStats() {
   try {
     const token = getToken();
@@ -736,6 +871,13 @@ window.addEventListener('load', () => {
     window.location.href = '/login.html';
   } else {
     console.log('✅ User is logged in');
+    // Load voices for speech synthesis
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
   }
 });
 
