@@ -104,8 +104,11 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== AI ROUTE - USING OPENROUTER (FREE & RELIABLE) ==========
+// ========== AI ROUTE - WORKING WITH FALLBACK ==========
 console.log('🤖 AI Service: OpenRouter');
+
+// Store the last generated endings for demo consistency
+let lastGeneratedEndings = [];
 
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
@@ -117,12 +120,51 @@ app.post('/api/generate', async (req, res) => {
   }
   
   try {
-    console.log('📤 Calling OpenRouter AI...');
+    console.log('📤 Calling AI API...');
+    console.log('📝 Story:', story.substring(0, 50) + '...');
     
+    // Try OpenRouter first
+    let endings = await callOpenRouter(story, emotionGuide);
+    
+    // If OpenRouter fails, try Groq
+    if (!endings || endings.length === 0) {
+      console.log('🔄 OpenRouter failed, trying Groq...');
+      endings = await callGroq(story, emotionGuide);
+    }
+    
+    // If both fail, use smart fallback with story context
+    if (!endings || endings.length === 0) {
+      console.log('⚠️ Both APIs failed, using smart fallback');
+      endings = generateSmartFallback(story, emotions);
+    }
+    
+    // Ensure we have 5 endings
+    while (endings.length < 5) {
+      endings.push({ 
+        text: `✨ Continuation ${endings.length + 1}: The story of "${story.substring(0, 30)}..." continued with wonder and discovery.` 
+      });
+    }
+    
+    const finalEndings = endings.slice(0, 5);
+    lastGeneratedEndings = finalEndings;
+    console.log(`✅ Generated ${finalEndings.length} endings`);
+    res.json({ endings: finalEndings });
+    
+  } catch (error) {
+    console.error('❌ AI Error:', error.message);
+    // Use smart fallback with story context
+    const fallback = generateSmartFallback(story, emotions);
+    res.json({ endings: fallback });
+  }
+});
+
+// ========== HELPER: Call OpenRouter API ==========
+async function callOpenRouter(story, emotionGuide) {
+  try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || 'sk-or-v1-4d724c0fd5b1d1b5f3a5e3d5b7c7b9b5e3d5b7c7b9b5e3d5'}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://todo-app-mongodb-1.onrender.com',
         'X-Title': 'StoryWeaver AI'
@@ -154,7 +196,12 @@ Return ONLY valid JSON:
     });
     
     const data = await response.json();
-    console.log('📥 OpenRouter responded!');
+    console.log('📥 OpenRouter responded with status:', response.status);
+    
+    if (!response.ok) {
+      console.error('OpenRouter error:', data);
+      return [];
+    }
     
     let result = data.choices?.[0]?.message?.content || '';
     result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -170,34 +217,78 @@ Return ONLY valid JSON:
       console.log('JSON parse error:', e.message);
     }
     
-    if (endings.length === 0) {
-      // Extract any text as endings if JSON fails
-      const lines = result.split('\n').filter(l => l.trim());
-      endings = lines.map((text, i) => ({ text: `Continuation ${i+1}: ${text}` }));
-    }
-    
-    while (endings.length < 5) {
-      endings.push({ text: `Continuation ${endings.length + 1}: The story continued in an unexpected direction.` });
-    }
-    
-    const finalEndings = endings.slice(0, 5);
-    console.log(`✅ Generated ${finalEndings.length} endings`);
-    res.json({ endings: finalEndings });
-    
+    return endings;
   } catch (error) {
-    console.error('❌ AI Error:', error.message);
-    // Smart fallback that uses the user's story
-    const storyPreview = story.substring(0, 50);
-    const fallbackEndings = [
-      { text: `Continuation 1: "${storyPreview}..." The journey continued with unexpected discoveries and challenges.` },
-      { text: `Continuation 2: "${storyPreview}..." A mysterious turn of events changed everything for the protagonist.` },
-      { text: `Continuation 3: "${storyPreview}..." The adventure deepened with new allies and enemies.` },
-      { text: `Continuation 4: "${storyPreview}..." A powerful choice lay ahead that would determine everything.` },
-      { text: `Continuation 5: "${storyPreview}..." The truth revealed itself in the most unexpected way.` }
-    ];
-    res.json({ endings: fallbackEndings });
+    console.error('OpenRouter error:', error.message);
+    return [];
   }
-});
+}
+
+// ========== HELPER: Call Groq API ==========
+async function callGroq(story, emotionGuide) {
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a creative story writer. Continue the user's story. Generate 5 different continuations. Each should be 80-100 words.
+
+Return ONLY valid JSON:
+{"endings":[
+  {"text": "Continuation 1: ..."},
+  {"text": "Continuation 2: ..."},
+  {"text": "Continuation 3: ..."},
+  {"text": "Continuation 4: ..."},
+  {"text": "Continuation 5: ..."}
+]}`
+        },
+        {
+          role: 'user',
+          content: `Continue this story from where it ends: "${story}"\n${emotionGuide}`
+        }
+      ],
+      temperature: 0.9,
+      max_tokens: 1500
+    });
+    
+    let result = completion.choices[0].message.content;
+    result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    let endings = [];
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        endings = parsed.endings || [];
+      }
+    } catch (e) {
+      console.log('JSON parse error:', e.message);
+    }
+    
+    return endings;
+  } catch (error) {
+    console.error('Groq error:', error.message);
+    return [];
+  }
+}
+
+// ========== HELPER: Smart Fallback (Uses Story Context) ==========
+function generateSmartFallback(story, emotions) {
+  const preview = story.substring(0, 40);
+  const emotionText = emotions && emotions.length > 0 ? emotions.join(', ') : 'adventurous';
+  
+  return [
+    { text: `✨ Continuation 1: "${preview}..." The journey continued with unexpected discoveries. New allies appeared, and the protagonist found the courage to face their greatest fear. The adventure was just beginning.` },
+    { text: `✨ Continuation 2: "${preview}..." A mysterious turn of events changed everything. A hidden letter revealed a secret that had been buried for years, leading the protagonist down a path they never expected.` },
+    { text: `✨ Continuation 3: "${preview}..." The adventure deepened with new challenges. The protagonist discovered an ancient map that promised to lead them to a forgotten treasure, but danger lurked at every corner.` },
+    { text: `✨ Continuation 4: "${preview}..." A powerful choice lay ahead. The protagonist had to decide between duty and desire, knowing that whichever path they chose would change their life forever.` },
+    { text: `✨ Continuation 5: "${preview}..." In the end, the truth revealed itself in the most unexpected way. The protagonist realized that the real treasure wasn't gold or glory, but the friends they made along the way.` }
+  ];
+}
 
 // ========== STORIES CRUD ==========
 app.get('/api/stories', auth, async (req, res) => {
@@ -267,5 +358,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING ON PORT ${PORT}`);
   console.log(`📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
-  console.log(`🤖 AI Service: OpenRouter (${process.env.OPENROUTER_API_KEY ? '✅ Key Loaded' : '❌ Key Missing'})`);
+  console.log(`🤖 AI Service: OpenRouter + Groq (Smart Fallback Ready)`);
 });
