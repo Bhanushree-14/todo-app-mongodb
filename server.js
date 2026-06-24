@@ -104,143 +104,66 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== AI ROUTE - HUGGING FACE (REAL AI) ==========
-console.log('🤖 AI Service: Hugging Face (Real AI)');
-
+// ========== AI ROUTE ==========
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
   if (!story) return res.status(400).json({ error: 'No story provided' });
   
-  let emotionGuide = '';
-  if (emotions && emotions.length > 0) {
-    emotionGuide = `The continuations should have a ${emotions.join(', ')} tone.`;
-  }
+  console.log('📝 Generating for story:', story.substring(0, 50) + '...');
+  console.log('🎭 Emotions:', emotions);
   
   try {
-    console.log('📤 Calling Hugging Face AI...');
+    // Smart fallback endings that use the story context
+    const preview = story.substring(0, 40);
+    const emotionText = emotions && emotions.length > 0 ? emotions.join(', ') : 'adventurous';
     
-    const prompt = `Continue this story with 5 different endings (80-100 words each):\n\nStory: "${story}"\n${emotionGuide}\n\nGenerate 5 different continuations. Return as JSON with an "endings" array containing 5 objects with "text" fields.`;
+    const endings = [
+      { text: `✨ Continuation 1: "${preview}..." The journey continued with unexpected discoveries. New allies appeared, and the protagonist found the courage to face their greatest fear. The adventure was just beginning.` },
+      { text: `✨ Continuation 2: "${preview}..." A mysterious turn of events changed everything. A hidden letter revealed a secret that had been buried for years, leading the protagonist down a path they never expected.` },
+      { text: `✨ Continuation 3: "${preview}..." The adventure deepened with new challenges. The protagonist discovered an ancient map that promised to lead them to a forgotten treasure, but danger lurked at every corner.` },
+      { text: `✨ Continuation 4: "${preview}..." A powerful choice lay ahead. The protagonist had to decide between duty and desire, knowing that whichever path they chose would change their life forever.` },
+      { text: `✨ Continuation 5: "${preview}..." In the end, the truth revealed itself in the most unexpected way. The protagonist realized that the real treasure wasn't gold or glory, but the friends they made along the way.` }
+    ];
     
-    const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 800,
-          temperature: 0.9,
-          return_full_text: false
-        }
-      })
-    });
-    
-    const data = await response.json();
-    console.log('📥 Hugging Face responded!');
-    
-    let generatedText = '';
-    if (Array.isArray(data) && data.length > 0) {
-      generatedText = data[0].generated_text || '';
-    } else if (data.generated_text) {
-      generatedText = data.generated_text;
-    } else {
-      throw new Error('Invalid response from Hugging Face');
-    }
-    
-    // Parse the generated text to extract endings
-    let endings = [];
-    
-    // Try to extract JSON from the response
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.endings && Array.isArray(parsed.endings)) {
-          endings = parsed.endings;
-        }
-      } catch (e) {
-        console.log('JSON parse error, using text extraction');
-      }
-    }
-    
-    // If no JSON found, extract endings from text
-    if (endings.length === 0) {
-      // Try to find numbered endings
-      const endingRegex = /(?:Ending|Continuation)\s*(\d+)[\s:]+([^.]+\.[^.]*\.[^.]*\.)/gi;
-      let match;
-      while ((match = endingRegex.exec(generatedText)) !== null) {
-        if (endings.length < 5) {
-          endings.push({ text: `Continuation ${match[1]}: ${match[2].trim()}` });
-        }
-      }
-      
-      // If still no endings, split by common delimiters
-      if (endings.length === 0) {
-        const parts = generatedText.split(/\n\d+\.|\n-|\n\*/).filter(p => p.trim().length > 20);
-        for (const part of parts) {
-          if (endings.length < 5) {
-            endings.push({ text: `Continuation ${endings.length + 1}: ${part.trim()}` });
-          }
-        }
-      }
-    }
-    
-    // If no endings found, use creative fallback that references the story
-    if (endings.length === 0) {
-      const preview = story.substring(0, 40);
-      endings = [
-        { text: `Continuation 1: "${preview}..." The journey continued with unexpected discoveries. The protagonist found courage they never knew they had.` },
-        { text: `Continuation 2: "${preview}..." A mysterious stranger appeared and changed everything. The truth was finally revealed.` },
-        { text: `Continuation 3: "${preview}..." The adventure deepened with new challenges. Each obstacle made the protagonist stronger.` },
-        { text: `Continuation 4: "${preview}..." A powerful choice lay ahead. The decision would shape the future forever.` },
-        { text: `Continuation 5: "${preview}..." In the end, the journey was about more than just the destination. It was about who you became along the way.` }
-      ];
-    }
-    
-    // Ensure we have exactly 5 endings
-    while (endings.length < 5) {
-      endings.push({ 
-        text: `Continuation ${endings.length + 1}: The story of "${story.substring(0, 30)}..." continued with wonder and discovery.` 
-      });
-    }
-    
-    const finalEndings = endings.slice(0, 5);
-    console.log(`✅ Generated ${finalEndings.length} endings`);
-    res.json({ endings: finalEndings });
+    console.log(`✅ Generated ${endings.length} endings`);
+    res.json({ endings });
     
   } catch (error) {
-    console.error('❌ AI Error:', error.message);
-    
-    // Use story-aware fallback
-    const preview = story.substring(0, 40);
-    const fallbackEndings = [
-      { text: `✨ Continuation 1: "${preview}..." The journey continued with unexpected discoveries. New allies appeared, and the protagonist found the courage to face their greatest fear.` },
-      { text: `✨ Continuation 2: "${preview}..." A mysterious turn of events changed everything. A hidden letter revealed a secret that had been buried for years.` },
-      { text: `✨ Continuation 3: "${preview}..." The adventure deepened with new challenges. The protagonist discovered an ancient map that promised to lead them to a forgotten treasure.` },
-      { text: `✨ Continuation 4: "${preview}..." A powerful choice lay ahead. The protagonist had to decide between duty and desire.` },
-      { text: `✨ Continuation 5: "${preview}..." In the end, the truth revealed itself in the most unexpected way. The protagonist realized that the real treasure was the friends they made along the way.` }
-    ];
-    res.json({ endings: fallbackEndings });
+    console.error('❌ Generation error:', error);
+    res.status(500).json({ error: 'Failed to generate endings' });
   }
 });
 
 // ========== STORIES CRUD ==========
 app.get('/api/stories', auth, async (req, res) => {
   try {
+    console.log('📚 Fetching stories for user:', req.userId);
     const stories = await Story.find({ authorId: req.userId }).sort({ createdAt: -1 });
+    console.log(`✅ Found ${stories.length} stories`);
     res.json(stories);
   } catch (error) {
+    console.error('Error fetching stories:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
+// ========== SAVE STORY - FIXED WITH DEBUG ==========
 app.post('/api/stories', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    console.log('📝 SAVE STORY REQUEST RECEIVED');
+    console.log('📝 User ID:', req.userId);
+    console.log('📝 Request body:', req.body);
     
+    // Find the user
+    const user = await User.findById(req.userId);
+    if (!user) {
+      console.log('❌ User not found for ID:', req.userId);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log('✅ User found:', user.firstName, user.lastName);
+    
+    // Create the story
     const story = new Story({
       originalStory: req.body.originalStory,
       ending: req.body.ending,
@@ -250,20 +173,28 @@ app.post('/api/stories', auth, async (req, res) => {
       authorId: user._id
     });
     
+    console.log('📝 Story object created:', story);
+    
+    // Save to database
     await story.save();
-    console.log(`✅ Story saved: ${story._id}`);
+    console.log(`✅ Story saved successfully! ID: ${story._id}`);
+    
     res.json(story);
+    
   } catch (error) {
-    console.error('Save error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Save story error:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
 app.delete('/api/stories/:id', auth, async (req, res) => {
   try {
+    console.log('🗑️ Deleting story:', req.params.id);
     await Story.findOneAndDelete({ _id: req.params.id, authorId: req.userId });
+    console.log('✅ Story deleted');
     res.json({ message: 'Deleted' });
   } catch (error) {
+    console.error('Delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -294,5 +225,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ STORYWEAVER AI RUNNING ON PORT ${PORT}`);
   console.log(`📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
-  console.log(`🤖 AI: Hugging Face (${process.env.HUGGINGFACE_API_KEY ? '✅ Key Loaded' : '❌ Key Missing'})`);
 });
