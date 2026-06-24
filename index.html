@@ -123,6 +123,14 @@
       padding: 1.2rem;
       border: 1px solid rgba(108, 99, 255, 0.2);
     }
+    .ending-text {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin: 0.5rem 0;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
     .save-btn-mongo {
       background: #28a745;
       border: none;
@@ -364,6 +372,7 @@ const API_URL = '/api/generate';
 let selectedEmotionsArray = [];
 let currentStoryBeginning = '';
 let currentStories = [];
+let allEndings = []; // Store all endings for saving
 
 // ============================================================
 // ========== TOKEN MANAGEMENT ==========
@@ -582,7 +591,7 @@ async function deleteStory(storyId) {
 }
 
 // ============================================================
-// ========== SAVE STORY TO BACKEND - FIXED ==========
+// ========== SAVE STORY TO BACKEND ==========
 // ============================================================
 async function saveStoryToBackend(originalStory, ending, emotions) {
   if (!isLoggedIn()) return false;
@@ -592,6 +601,7 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
   // Clean the ending - remove "Continuation X:" if present
   let cleanEnding = ending;
   cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
+  cleanEnding = cleanEnding.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
   cleanEnding = cleanEnding.trim();
   
   console.log('📝 Saving story:', {
@@ -688,16 +698,19 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     
     if (!endings.length) throw new Error('No endings generated');
     
+    allEndings = endings; // Store for saving
+    
     let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
     endings.forEach((end, i) => {
       let cleanText = end.text;
       cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
+      cleanText = cleanText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
       cleanText = cleanText.trim();
       
       html += `
-        <div class="ending-card">
+        <div class="ending-card" data-index="${i}">
           <h4>📖 Ending ${i+1}</h4>
-          <div style="font-size:0.9rem; opacity:0.9; margin:0.5rem 0; max-height:150px; overflow-y:auto; white-space:pre-wrap;">${escapeHtml(cleanText)}</div>
+          <div class="ending-text">${escapeHtml(cleanText)}</div>
           <button class="save-btn-mongo" data-ending="${escapeHtml(cleanText)}">💾 Save to Library</button>
         </div>
       `;
@@ -721,10 +734,8 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
         
         if (success) {
           msg.innerHTML = '<div class="success-msg">✅ Story saved successfully!</div>';
-          // Refresh library after save
           await renderLibrary();
           setTimeout(() => msg.innerHTML = '', 3000);
-          // Switch to library tab
           document.querySelector('.tab-btn[data-panel="library"]').click();
         } else {
           msg.innerHTML = '<div class="error-msg">❌ Failed to save. Please try again.</div>';
