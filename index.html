@@ -498,31 +498,12 @@ async function speakStory(storyId) {
   const fullText = story.originalStory + ' ' + story.ending;
   
   if ('speechSynthesis' in window) {
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
-    
     const utterance = new SpeechSynthesisUtterance(fullText);
     utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = 1;
-    
-    // Try to find a female voice
-    const voices = window.speechSynthesis.getVoices();
-    const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google UK') || v.name.includes('Samantha'));
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
-    }
-    
     window.speechSynthesis.speak(utterance);
-    
-    // Change button temporarily
-    const btns = document.querySelectorAll('.speak-btn');
-    btns.forEach(btn => {
-      if (btn.getAttribute('onclick').includes(storyId)) {
-        btn.textContent = '🔊 Playing...';
-        setTimeout(() => { btn.textContent = '🔊 Listen'; }, 5000);
-      }
-    });
   } else {
     alert('Text-to-speech is not supported in your browser.');
   }
@@ -557,7 +538,6 @@ async function saveEditedStory() {
     return;
   }
   
-  // Split into original story and ending
   const parts = newContent.split('\n\n');
   const originalStory = parts[0] || '';
   const ending = parts.slice(1).join('\n\n') || '';
@@ -618,6 +598,13 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
   
   const token = getToken();
   try {
+    // Clean the ending - remove "Continuation X:" if present
+    let cleanEnding = ending;
+    // Remove "Continuation X:" pattern
+    cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
+    // Remove leading/trailing spaces
+    cleanEnding = cleanEnding.trim();
+    
     const response = await fetch('/api/stories', {
       method: 'POST',
       headers: {
@@ -625,8 +612,8 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
         'Authorization': 'Bearer ' + token
       },
       body: JSON.stringify({
-        originalStory: originalStory,
-        ending: ending,
+        originalStory: originalStory.trim(),
+        ending: cleanEnding,
         emotions: emotions
       })
     });
@@ -663,7 +650,6 @@ async function callBackendAPI(story, emotions) {
 // ========== UI HANDLERS ==========
 // ============================================================
 
-// Emotion chip selection
 document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
   chip.addEventListener('click', () => {
     const emo = chip.getAttribute('data-emotion');
@@ -677,7 +663,6 @@ document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
   });
 });
 
-// End Story button
 document.getElementById('endStoryTriggerBtn').addEventListener('click', () => {
   const story = document.getElementById('unfinishedStory').value.trim();
   if (!story) { alert('✨ Please write your story first.'); return; }
@@ -686,7 +671,6 @@ document.getElementById('endStoryTriggerBtn').addEventListener('click', () => {
   document.getElementById('emotionSection').scrollIntoView({ behavior: 'smooth' });
 });
 
-// Generate Endings button
 document.getElementById('weaveEndingsBtn').addEventListener('click', async () => {
   const story = currentStoryBeginning;
   if (!story) { alert('📖 Story cannot be empty'); return; }
@@ -703,18 +687,22 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     
     let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
     endings.forEach((end, i) => {
+      // Clean the ending text - remove "Continuation X:" if present
+      let cleanText = end.text;
+      cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
+      cleanText = cleanText.trim();
+      
       html += `
         <div class="ending-card">
           <h4>📖 Ending ${i+1}</h4>
-          <div style="font-size:0.9rem; opacity:0.9; margin:0.5rem 0; max-height:150px; overflow-y:auto; white-space:pre-wrap;">${escapeHtml(end.text)}</div>
-          <button class="save-btn-mongo" data-ending="${escapeHtml(end.text)}">💾 Save to Library</button>
+          <div style="font-size:0.9rem; opacity:0.9; margin:0.5rem 0; max-height:150px; overflow-y:auto; white-space:pre-wrap;">${escapeHtml(cleanText)}</div>
+          <button class="save-btn-mongo" data-ending="${escapeHtml(cleanText)}">💾 Save to Library</button>
         </div>
       `;
     });
     html += `</div>`;
     wrapper.innerHTML = html;
     
-    // Attach save handlers
     document.querySelectorAll('.save-btn-mongo').forEach(btn => {
       btn.addEventListener('click', async () => {
         const ending = btn.getAttribute('data-ending');
@@ -792,7 +780,6 @@ async function loadProfile() {
       </div>
     `;
     
-    // Load story stats
     await loadStoryStats();
     
   } catch (error) {
@@ -871,7 +858,6 @@ window.addEventListener('load', () => {
     window.location.href = '/login.html';
   } else {
     console.log('✅ User is logged in');
-    // Load voices for speech synthesis
     if ('speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
       window.speechSynthesis.onvoiceschanged = () => {
