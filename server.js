@@ -20,8 +20,8 @@ app.get('/', (req, res) => {
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/storyweaver';
 
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected to StoryWeaver Database'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log('✅ MongoDB Connected'))
+  .catch(err => console.error('❌ MongoDB Error:', err));
 
 // ========== MONGODB SCHEMAS ==========
 const userSchema = new mongoose.Schema({
@@ -52,7 +52,7 @@ const Story = mongoose.model('Story', storySchema);
 // ========== MIDDLEWARE ==========
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
+  if (!token) return res.status(401).json({ error: 'No token' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     req.userId = decoded.userId;
@@ -105,8 +105,10 @@ app.get('/api/me', auth, async (req, res) => {
   }
 });
 
-// ========== GROQ AI ROUTE - FINAL WORKING VERSION ==========
+// ========== GROQ AI ROUTE - DEMO VERSION ==========
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+console.log('🔑 Groq API Key:', process.env.GROQ_API_KEY ? '✅ Loaded' : '❌ MISSING');
 
 app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
@@ -118,40 +120,34 @@ app.post('/api/generate', async (req, res) => {
   }
   
   try {
+    console.log('📤 Calling Groq API...');
+    
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama3-70b-8192',  // Smaller, more stable model
       messages: [
         { 
           role: 'system', 
-          content: `You are a professional story writer. Your task is to CONTINUE the story from where the user left off.
+          content: `You are a creative story writer. Continue the user's story. Generate 5 different continuations. Each should be 80-100 words.
 
-Generate 5 COMPLETELY DIFFERENT story continuations. Each continuation should:
-- Start from where the user's story ends
-- Be 150-250 words long (detailed and descriptive)
-- Have unique plot twists, character development, or outcomes
-- Be engaging and immersive
-- NOT repeat the user's original story
-
-Return ONLY valid JSON format:
+Return ONLY valid JSON:
 {"endings":[
-  {"text": "Continuation 1: [your detailed continuation here]"},
-  {"text": "Continuation 2: [your detailed continuation here]"},
-  {"text": "Continuation 3: [your detailed continuation here]"},
-  {"text": "Continuation 4: [your detailed continuation here]"},
-  {"text": "Continuation 5: [your detailed continuation here]"}
-]}
-
-Each continuation must be 150-250 words long.`
+  {"text": "Continuation 1: ..."},
+  {"text": "Continuation 2: ..."},
+  {"text": "Continuation 3: ..."},
+  {"text": "Continuation 4: ..."},
+  {"text": "Continuation 5: ..."}
+]}`
         },
         { 
           role: 'user', 
-          content: `Continue this story from where it ends: "${story}"\n${emotionGuide}\n\nGive me 5 different, detailed continuations (150-250 words each). Do NOT repeat the original story.` 
+          content: `Continue this story: "${story}"\n${emotionGuide}` 
         }
       ],
       temperature: 0.9,
-      max_tokens: 3000
+      max_tokens: 1500
     });
     
+    console.log('📥 Groq responded!');
     let result = completion.choices[0].message.content;
     result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
@@ -166,37 +162,32 @@ Each continuation must be 150-250 words long.`
       console.log('JSON parse error:', e.message);
     }
     
-    // Only use fallback if AI returns nothing
     if (endings.length === 0) {
-      console.log('⚠️ AI returned no endings, using fallback');
-      const fallbackEndings = [
-        { text: `Continuation 1: The journey continued with unexpected discoveries and challenges along the way.` },
-        { text: `Continuation 2: A mysterious turn of events changed everything for the protagonist.` },
-        { text: `Continuation 3: The adventure deepened with new allies and enemies.` },
-        { text: `Continuation 4: A powerful choice lay ahead that would determine everything.` },
-        { text: `Continuation 5: The truth revealed itself in the most unexpected way.` }
+      endings = [
+        { text: `Continuation 1: The story took an unexpected turn as the protagonist discovered a hidden secret.` },
+        { text: `Continuation 2: A mysterious stranger appeared and changed everything.` },
+        { text: `Continuation 3: The adventure deepened with new challenges and discoveries.` },
+        { text: `Continuation 4: A powerful choice lay ahead that would determine the future.` },
+        { text: `Continuation 5: The truth was finally revealed in the most surprising way.` }
       ];
-      endings = fallbackEndings;
     }
     
-    // Ensure we have exactly 5 endings
     while (endings.length < 5) {
-      const lastEnding = endings[endings.length - 1]?.text || "The story continued with wonder and magic.";
-      endings.push({ text: lastEnding + " The adventure continued in unexpected ways." });
+      endings.push({ text: `Continuation ${endings.length + 1}: The story continued in an unexpected direction.` });
     }
     
     const finalEndings = endings.slice(0, 5);
-    console.log(`✅ Generated ${finalEndings.length} continuations`);
+    console.log(`✅ Generated ${finalEndings.length} endings`);
     res.json({ endings: finalEndings });
     
   } catch (error) {
-    console.error('❌ Groq Error:', error.message);
+    console.error('❌ Error:', error.message);
     const fallbackEndings = [
-      { text: `Continuation 1: The journey continued with unexpected discoveries.` },
-      { text: `Continuation 2: A mysterious turn of events changed everything.` },
-      { text: `Continuation 3: The adventure deepened with new challenges.` },
-      { text: `Continuation 4: A powerful choice lay ahead.` },
-      { text: `Continuation 5: The truth revealed itself.` }
+      { text: `Continuation 1: The story continued with a surprising twist that changed everything.` },
+      { text: `Continuation 2: A new character entered the scene with a mysterious purpose.` },
+      { text: `Continuation 3: The protagonist faced their greatest challenge yet.` },
+      { text: `Continuation 4: An unexpected discovery revealed the truth.` },
+      { text: `Continuation 5: The journey reached a beautiful and satisfying conclusion.` }
     ];
     res.json({ endings: fallbackEndings });
   }
@@ -230,16 +221,15 @@ app.post('/api/stories', auth, async (req, res) => {
     console.log(`✅ Story saved: ${story._id}`);
     res.json(story);
   } catch (error) {
-    console.error('Save story error:', error);
+    console.error('Save error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 app.delete('/api/stories/:id', auth, async (req, res) => {
   try {
-    const story = await Story.findOneAndDelete({ _id: req.params.id, authorId: req.userId });
-    if (!story) return res.status(404).json({ error: 'Story not found' });
-    res.json({ message: 'Story deleted successfully' });
+    await Story.findOneAndDelete({ _id: req.params.id, authorId: req.userId });
+    res.json({ message: 'Deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -261,29 +251,14 @@ app.put('/api/stories/:id', auth, async (req, res) => {
   }
 });
 
-app.get('/api/writers', async (req, res) => {
-  try {
-    const users = await User.find({ role: { $in: ['writer', 'both'] } }).select('-password');
-    const allStories = await Story.find();
-    const writerData = users.map(w => {
-      const writerStories = allStories.filter(s => s.authorId.toString() === w._id.toString());
-      return { id: w._id, name: `${w.firstName} ${w.lastName}`, avatar: w.avatar, city: w.city, country: w.country, storyCount: writerStories.length, genres: [...new Set(writerStories.flatMap(s => s.emotions || []))] };
-    });
-    res.json(writerData);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 app.get('/api/health', async (req, res) => {
   const userCount = await User.countDocuments();
   const storyCount = await Story.countDocuments();
-  res.json({ status: 'ok', message: 'StoryWeaver AI is running!', users: userCount, stories: storyCount, mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+  res.json({ status: 'ok', users: userCount, stories: storyCount, mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ STORYWEAVER AI RUNNING AT http://localhost:${PORT}`);
-  console.log(`📊 MongoDB Status: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
-  console.log(`💾 Data will be persisted to MongoDB database\n`);
+  console.log(`\n✅ STORYWEAVER AI RUNNING ON PORT ${PORT}`);
+  console.log(`📊 MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'}`);
 });
