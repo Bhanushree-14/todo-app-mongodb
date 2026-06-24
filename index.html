@@ -35,6 +35,7 @@
       gap: 1rem;
       justify-content: center;
       margin: 2rem 0;
+      flex-wrap: wrap;
     }
     .tab-btn {
       background: transparent;
@@ -131,6 +132,7 @@
       cursor: pointer;
       width: 100%;
       margin-top: 10px;
+      color: white;
     }
     .save-btn-mongo:hover { background: #218838; }
     
@@ -153,6 +155,7 @@
       margin-top: 10px;
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
     .view-story-btn {
       background: #6c63ff;
@@ -188,6 +191,25 @@
     
     .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     
+    /* Profile Styles */
+    .profile-avatar {
+      font-size: 4rem;
+      background: #6c63ff;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .stat-card {
+      background: #6c63ff20;
+      padding: 1rem;
+      border-radius: 1rem;
+      text-align: center;
+    }
+    
     /* Modal */
     #storyModal {
       display: none;
@@ -222,6 +244,8 @@
       .container { padding: 1rem; }
       .brand h1 { font-size: 1.8rem; }
       .endings-grid { grid-template-columns: 1fr; }
+      .tab-nav { gap: 0.5rem; }
+      .tab-btn { padding: 0.5rem 1rem; font-size: 0.8rem; }
     }
   </style>
 </head>
@@ -236,6 +260,7 @@
   <div class="tab-nav">
     <button class="tab-btn active" data-panel="writer">✍️ Writer Studio</button>
     <button class="tab-btn" data-panel="library">📚 My Library</button>
+    <button class="tab-btn" data-panel="profile">👤 Profile</button>
   </div>
 
   <!-- WRITER PANEL -->
@@ -273,6 +298,16 @@
       </div>
       <div id="libraryContainer" style="margin-top: 1.5rem;">
         <p style="text-align: center; opacity: 0.7;">Loading your stories...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE PANEL -->
+  <div id="profilePanel" class="panel">
+    <div class="glass-card">
+      <h3>👤 My Profile</h3>
+      <div id="profileContainer" style="margin-top: 1.5rem;">
+        <div class="loading"><div class="spinner"></div><p>Loading profile...</p></div>
       </div>
     </div>
   </div>
@@ -569,18 +604,113 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
 });
 
 // ============================================================
+// ========== LOAD USER PROFILE ==========
+// ============================================================
+async function loadProfile() {
+  const container = document.getElementById('profileContainer');
+  const token = getToken();
+  
+  if (!token) {
+    container.innerHTML = '<p style="color: #e74c3c;">Please login to view profile.</p>';
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    
+    if (!response.ok) throw new Error('Failed to load profile');
+    
+    const user = await response.json();
+    
+    container.innerHTML = `
+      <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+          <div class="profile-avatar">
+            ${user.firstName?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h2 style="color: #C7B9FF;">${user.firstName || ''} ${user.lastName || ''}</h2>
+            <p>📧 ${user.email || ''}</p>
+            <p>📍 ${user.city || 'Not set'}${user.country ? ', ' + user.country : ''}</p>
+            <p>🎭 Role: ${user.role || 'writer'}</p>
+            <p>📅 Joined: ${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+          </div>
+        </div>
+        <hr style="border-color: #6c63ff; margin: 1rem 0;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+          <div class="stat-card">
+            <p style="font-size: 2rem;">📖</p>
+            <p><strong>Stories</strong></p>
+            <p id="storyCount">Loading...</p>
+          </div>
+          <div class="stat-card">
+            <p style="font-size: 2rem;">🎭</p>
+            <p><strong>Emotions Used</strong></p>
+            <p id="emotionCount">Loading...</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Load story stats
+    await loadStoryStats();
+    
+  } catch (error) {
+    console.error('Profile error:', error);
+    container.innerHTML = '<p style="color: #e74c3c;">Failed to load profile. Please login again.</p>';
+  }
+}
+
+// ============================================================
+// ========== LOAD STORY STATS ==========
+// ============================================================
+async function loadStoryStats() {
+  try {
+    const token = getToken();
+    const response = await fetch('/api/stories', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    
+    if (!response.ok) return;
+    
+    const stories = await response.json();
+    document.getElementById('storyCount').textContent = stories.length;
+    
+    const emotions = new Set();
+    stories.forEach(s => {
+      if (s.emotions) s.emotions.forEach(e => emotions.add(e));
+    });
+    document.getElementById('emotionCount').textContent = emotions.size || 'None';
+    
+  } catch (error) {
+    console.error('Story stats error:', error);
+  }
+}
+
+// ============================================================
 // ========== TAB SWITCHING ==========
 // ============================================================
+const panels = {
+  writer: 'writerPanel',
+  library: 'libraryPanel',
+  profile: 'profilePanel'
+};
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const target = btn.getAttribute('data-panel');
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
-    document.getElementById(target + 'Panel').classList.add('active-panel');
+    document.getElementById(panels[target]).classList.add('active-panel');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     
     if (target === 'library') {
       renderLibrary();
+    }
+    if (target === 'profile') {
+      loadProfile();
     }
   });
 });
@@ -606,10 +736,6 @@ window.addEventListener('load', () => {
     window.location.href = '/login.html';
   } else {
     console.log('✅ User is logged in');
-    // Pre-load library if it's the active tab
-    if (document.querySelector('.tab-btn.active')?.getAttribute('data-panel') === 'library') {
-      renderLibrary();
-    }
   }
 });
 
