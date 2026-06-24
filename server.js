@@ -109,10 +109,19 @@ app.get('/api/me', auth, async (req, res) => {
 });
 
 // ========== OPENROUTER HELPER (uses https module — no fetch needed) ==========
-function callOpenRouter(apiKey, messages, temperature) {
+// Ordered list of free models to try. If one has no active provider (404),
+// we automatically fall through to the next one.
+const FREE_MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'deepseek/deepseek-chat-v3.1:free',
+  'meta-llama/llama-4-scout:free',
+  'mistralai/mistral-7b-instruct:free'
+];
+
+function callOpenRouterOnce(apiKey, model, messages, temperature) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
-      model: 'mistralai/mistral-7b-instruct:free',
+      model,
       messages,
       max_tokens: 250,
       temperature
@@ -138,7 +147,9 @@ function callOpenRouter(apiKey, messages, temperature) {
         try {
           const parsed = JSON.parse(raw);
           if (resp.statusCode !== 200) {
-            reject(new Error('OpenRouter ' + resp.statusCode + ': ' + JSON.stringify(parsed)));
+            const err = new Error('OpenRouter ' + resp.statusCode + ': ' + JSON.stringify(parsed));
+            err.statusCode = resp.statusCode;
+            reject(err);
           } else {
             resolve(parsed);
           }
@@ -152,6 +163,26 @@ function callOpenRouter(apiKey, messages, temperature) {
     req.write(body);
     req.end();
   });
+}
+
+// Tries each model in FREE_MODELS in order. Moves to the next one only on a
+// 404 "no endpoints" error, since that means the model itself is unavailable
+// rather than a problem with the request.
+async function callOpenRouter(apiKey, messages, temperature) {
+  let lastError;
+  for (const model of FREE_MODELS) {
+    try {
+      console.log('🤖 Trying model:', model);
+      return await callOpenRouterOnce(apiKey, model, messages, temperature);
+    } catch (err) {
+      lastError = err;
+      console.warn('⚠️ Model failed:', model, '-', err.message);
+      if (err.statusCode !== 404) {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
 }
 
 // ========== AI STORY GENERATION ==========
