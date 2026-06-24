@@ -29,7 +29,7 @@
       text-align: center;
     }
     .brand p { text-align: center; opacity: 0.8; margin-top: 0.5rem; }
-    
+
     .tab-nav {
       display: flex;
       gap: 1rem;
@@ -54,7 +54,7 @@
     }
     .panel { display: none; }
     .panel.active-panel { display: block; animation: fadeSlideUp 0.35s ease-out; }
-    
+
     @keyframes fadeSlideUp {
       from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
@@ -73,9 +73,10 @@
       cursor: pointer;
       text-align: center;
       transition: 0.2s;
+      user-select: none;
     }
     .emotion-chip.selected { background: #6c63ff; box-shadow: 0 0 10px #6c63ff; }
-    
+
     .story-textarea {
       width: 100%;
       background: rgba(10, 12, 28, 0.8);
@@ -85,8 +86,10 @@
       color: white;
       min-height: 150px;
       font-size: 1rem;
+      resize: vertical;
     }
-    
+    .story-textarea:focus { outline: none; border-color: #6c63ff; }
+
     .end-story-btn {
       background: linear-gradient(95deg, #ff6a5c, #ff8a5c);
       border: none;
@@ -98,7 +101,10 @@
       cursor: pointer;
       margin: 1rem 0;
       font-size: 1rem;
+      transition: 0.2s;
     }
+    .end-story-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
     .weave-btn {
       background: #6c63ff;
       border: none;
@@ -108,8 +114,12 @@
       cursor: pointer;
       font-size: 1rem;
       margin-top: 0.5rem;
+      color: white;
+      transition: 0.2s;
     }
-    
+    .weave-btn:hover { filter: brightness(1.1); }
+    .weave-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
     .endings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -130,6 +140,7 @@
       max-height: 150px;
       overflow-y: auto;
       white-space: pre-wrap;
+      line-height: 1.6;
     }
     .save-btn-mongo {
       background: #28a745;
@@ -142,9 +153,11 @@
       margin-top: 10px;
       color: white;
       font-size: 1rem;
+      transition: 0.2s;
     }
     .save-btn-mongo:hover { background: #218838; }
-    
+    .save-btn-mongo:disabled { opacity: 0.6; cursor: not-allowed; }
+
     /* Library Cards */
     .story-card {
       background: rgba(15, 18, 35, 0.7);
@@ -178,7 +191,7 @@
     .edit-story-btn { background: #f39c12; }
     .delete-story { background: #e74c3c; }
     .speak-btn { background: #1abc9c; }
-    
+
     .loading { text-align: center; padding: 2rem; }
     .spinner {
       width: 40px;
@@ -190,12 +203,12 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    
-    .success-msg { background: #28a745; padding: 0.5rem; border-radius: 2rem; text-align: center; }
-    .error-msg { background: #e74c3c; padding: 0.5rem; border-radius: 2rem; text-align: center; }
-    
+
+    .success-msg { background: #28a745; padding: 0.7rem 1rem; border-radius: 2rem; text-align: center; }
+    .error-msg { background: #e74c3c; padding: 0.7rem 1rem; border-radius: 2rem; text-align: center; }
+
     .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    
+
     .profile-avatar {
       font-size: 4rem;
       background: #6c63ff;
@@ -213,7 +226,7 @@
       border-radius: 1rem;
       text-align: center;
     }
-    
+
     #storyModal, #editModal {
       display: none;
       position: fixed;
@@ -263,7 +276,7 @@
       font-weight: bold;
       margin-top: 1rem;
     }
-    
+
     @media (max-width: 600px) {
       .container { padding: 1rem; }
       .brand h1 { font-size: 1.8rem; }
@@ -293,7 +306,7 @@
       <textarea id="unfinishedStory" rows="5" class="story-textarea" placeholder="Write your story beginning here..."></textarea>
       <button id="endStoryTriggerBtn" class="end-story-btn">📖 END MY STORY TELLING</button>
       <div id="emotionSection" style="display: none;">
-        <h4>🎭 Select Genres for Your Story</h4>
+        <h4 style="margin-bottom: 0.5rem;">🎭 Select Genres for Your Story</h4>
         <div class="emotion-grid" id="emotionGrid">
           <div class="emotion-chip" data-emotion="happy">😊 Happy</div>
           <div class="emotion-chip" data-emotion="thriller">🔪 Thriller</div>
@@ -333,6 +346,7 @@
   <footer style="text-align:center; margin-top:2rem; opacity:0.5; font-size:0.8rem;">✨ Create · Save · Share Your Stories</footer>
 </div>
 
+<!-- View Story Modal -->
 <div id="storyModal">
   <div class="modal-content">
     <div class="flex-between">
@@ -340,13 +354,14 @@
       <button class="close-btn" onclick="closeModal()">✖ Close</button>
     </div>
     <hr style="margin:1rem 0; border-color:#6c63ff;">
-    <p id="modalFullStory" style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:1rem; margin:0.5rem 0; white-space:pre-wrap;"></p>
-    <p><strong>👤 Author:</strong> <span id="modalAuthor"></span></p>
+    <p id="modalFullStory" style="background:rgba(0,0,0,0.3); padding:1rem; border-radius:1rem; margin:0.5rem 0; white-space:pre-wrap; line-height:1.7;"></p>
+    <p style="margin-top:0.8rem;"><strong>👤 Author:</strong> <span id="modalAuthor"></span></p>
     <p><strong>📅 Date:</strong> <span id="modalDate"></span></p>
-    <p><strong>🎭 Emotions:</strong> <span id="modalEmotions"></span></p>
+    <p><strong>🎭 Genres:</strong> <span id="modalEmotions"></span></p>
   </div>
 </div>
 
+<!-- Edit Story Modal -->
 <div id="editModal">
   <div class="modal-content">
     <div class="flex-between">
@@ -362,17 +377,11 @@
 
 <script>
 // ============================================================
-// ========== API CONFIGURATION ==========
-// ============================================================
-const API_URL = '/api/generate';
-
-// ============================================================
-// ========== STATE VARIABLES ==========
+// ========== STATE ==========
 // ============================================================
 let selectedEmotionsArray = [];
 let currentStoryBeginning = '';
 let currentStories = [];
-let currentEndingsList = []; // Store all endings
 
 // ============================================================
 // ========== TOKEN MANAGEMENT ==========
@@ -392,24 +401,18 @@ function isLoggedIn() {
 }
 
 // ============================================================
-// ========== READ STORIES FROM BACKEND ==========
+// ========== LOAD STORIES FROM BACKEND ==========
 // ============================================================
 async function loadStoriesFromBackend() {
   if (!isLoggedIn()) return [];
-  
   const token = getToken();
   try {
     const response = await fetch('/api/stories', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to load stories');
-    }
-    
+    if (!response.ok) throw new Error('Failed to load stories');
     const stories = await response.json();
     currentStories = stories;
-    console.log('📚 Loaded', stories.length, 'stories');
     return stories;
   } catch (error) {
     console.error('Error loading stories:', error);
@@ -423,21 +426,20 @@ async function loadStoriesFromBackend() {
 async function renderLibrary() {
   const container = document.getElementById('libraryContainer');
   container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading your stories...</p></div>';
-  
+
   const stories = await loadStoriesFromBackend();
-  
+
   if (!stories || stories.length === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding:3rem;">
         <p style="font-size:3rem;">📭</p>
         <p>No stories yet. Create and save your first story!</p>
-      </div>
-    `;
+      </div>`;
     return;
   }
-  
+
   container.innerHTML = stories.map(story => {
-    const fullText = story.originalStory + ' ' + story.ending;
+    const preview = (story.originalStory + ' ' + story.ending).substring(0, 150);
     return `
     <div class="story-card" data-id="${story._id}">
       <div class="flex-between">
@@ -446,33 +448,26 @@ async function renderLibrary() {
       </div>
       <p style="font-size:0.85rem; margin:0.5rem 0;">📅 ${new Date(story.createdAt).toLocaleString()}</p>
       <p><strong>Author:</strong> ${escapeHtml(story.author)}</p>
-      <p style="font-size:0.9rem; opacity:0.8;">${escapeHtml(fullText.substring(0, 150))}...</p>
+      <p style="font-size:0.9rem; opacity:0.8;">${escapeHtml(preview)}...</p>
       <div class="actions">
         <button class="view-story-btn" onclick='viewFullStory("${story._id}")'>📖 View</button>
         <button class="speak-btn" onclick='speakStory("${story._id}")'>🔊 Listen</button>
         <button class="edit-story-btn" onclick='openEditModal("${story._id}")'>✏️ Edit</button>
         <button class="delete-story" onclick='deleteStory("${story._id}")'>🗑️ Delete</button>
       </div>
-    </div>
-  `}).join('');
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
 // ========== VIEW FULL STORY ==========
 // ============================================================
 async function viewFullStory(storyId) {
-  const stories = await loadStoriesFromBackend();
-  const story = stories.find(s => s._id === storyId);
-  
-  if (!story) {
-    alert('Story not found!');
-    return;
-  }
-  
-  const fullText = story.originalStory + '\n\n' + story.ending;
-  
+  const story = currentStories.find(s => s._id === storyId);
+  if (!story) { alert('Story not found!'); return; }
+
   document.getElementById('modalTitle').textContent = `📖 Story from ${new Date(story.createdAt).toLocaleDateString()}`;
-  document.getElementById('modalFullStory').textContent = fullText;
+  document.getElementById('modalFullStory').textContent = story.originalStory + '\n\n' + story.ending;
   document.getElementById('modalAuthor').textContent = story.author || 'Unknown';
   document.getElementById('modalDate').textContent = new Date(story.createdAt).toLocaleString();
   document.getElementById('modalEmotions').textContent = story.emotions?.join(', ') || 'None';
@@ -487,19 +482,12 @@ function closeModal() {
 // ========== SPEAK STORY ==========
 // ============================================================
 async function speakStory(storyId) {
-  const stories = await loadStoriesFromBackend();
-  const story = stories.find(s => s._id === storyId);
-  
-  if (!story) {
-    alert('Story not found!');
-    return;
-  }
-  
-  const fullText = story.originalStory + ' ' + story.ending;
-  
+  const story = currentStories.find(s => s._id === storyId);
+  if (!story) { alert('Story not found!'); return; }
+
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(fullText);
+    const utterance = new SpeechSynthesisUtterance(story.originalStory + ' ' + story.ending);
     utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -514,13 +502,8 @@ async function speakStory(storyId) {
 // ============================================================
 function openEditModal(storyId) {
   const story = currentStories.find(s => s._id === storyId);
-  if (!story) {
-    alert('Story not found!');
-    return;
-  }
-  
-  const fullText = story.originalStory + '\n\n' + story.ending;
-  document.getElementById('editStoryContent').value = fullText;
+  if (!story) { alert('Story not found!'); return; }
+  document.getElementById('editStoryContent').value = story.originalStory + '\n\n' + story.ending;
   document.getElementById('editStoryId').value = storyId;
   document.getElementById('editModal').style.display = 'flex';
 }
@@ -532,37 +515,24 @@ function closeEditModal() {
 async function saveEditedStory() {
   const storyId = document.getElementById('editStoryId').value;
   const newContent = document.getElementById('editStoryContent').value;
-  
-  if (!newContent.trim()) {
-    alert('Story cannot be empty!');
-    return;
-  }
-  
+  if (!newContent.trim()) { alert('Story cannot be empty!'); return; }
+
   const parts = newContent.split('\n\n');
   const originalStory = parts[0] || '';
   const ending = parts.slice(1).join('\n\n') || '';
-  
+
   const token = getToken();
   try {
     const response = await fetch(`/api/stories/${storyId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify({
-        originalStory: originalStory,
-        ending: ending
-      })
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ originalStory, ending })
     });
-    
     if (!response.ok) throw new Error('Failed to update story');
-    
     alert('✅ Story updated successfully!');
     closeEditModal();
     renderLibrary();
   } catch (error) {
-    console.error('Update error:', error);
     alert('Failed to update story: ' + error.message);
   }
 }
@@ -572,76 +542,44 @@ async function saveEditedStory() {
 // ============================================================
 async function deleteStory(storyId) {
   if (!confirm('Delete this story?')) return;
-  
   const token = getToken();
   try {
     const response = await fetch(`/api/stories/${storyId}`, {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + token }
     });
-    
     if (!response.ok) throw new Error('Failed to delete');
-    
-    console.log('✅ Story deleted');
     await renderLibrary();
   } catch (error) {
-    console.error('Delete error:', error);
     alert('Failed to delete story');
   }
 }
 
 // ============================================================
-// ========== SAVE STORY TO BACKEND ==========
+// ========== SAVE STORY TO BACKEND — FIXED ==========
 // ============================================================
 async function saveStoryToBackend(originalStory, ending, emotions) {
   if (!isLoggedIn()) return false;
-  
+
   const token = getToken();
-  
-  // Clean the ending
-  let cleanEnding = ending;
-  cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
-  cleanEnding = cleanEnding.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
-  cleanEnding = cleanEnding.replace(/^✨\s*/i, '');
-  cleanEnding = cleanEnding.trim();
-  
-  // If ending is empty or just a symbol, use the actual AI-generated text from the list
-  if (!cleanEnding || cleanEnding.length < 3 || cleanEnding === '✨') {
-    // Try to find the actual ending from the stored list
-    if (currentEndingsList.length > 0) {
-      // Find the matching ending by comparing text
-      for (const end of currentEndingsList) {
-        let endText = end.text;
-        endText = endText.replace(/^Continuation\s*\d+:\s*/i, '');
-        endText = endText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
-        endText = endText.replace(/^✨\s*/i, '');
-        endText = endText.trim();
-        // If the cleaned text matches what we have, use it
-        if (endText && endText.length > 10) {
-          cleanEnding = endText;
-          break;
-        }
-      }
-    }
-    
-    // Still empty? Use the first ending from the list
-    if ((!cleanEnding || cleanEnding.length < 3) && currentEndingsList.length > 0) {
-      let endText = currentEndingsList[0].text;
-      endText = endText.replace(/^Continuation\s*\d+:\s*/i, '');
-      endText = endText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
-      endText = endText.replace(/^✨\s*/i, '');
-      cleanEnding = endText.trim();
-    }
-    
-    // Final fallback
-    if (!cleanEnding || cleanEnding.length < 3) {
-      cleanEnding = "The story continued with wonder and discovery. The journey was just beginning, and the protagonist knew that this was only the start of something truly magical.";
-    }
+
+  // Clean up any prefix artifacts from the ending text
+  let cleanEnding = ending
+    .replace(/^Continuation\s*\d+:\s*/i, '')
+    .replace(/^✨\s*Continuation\s*\d+:\s*/i, '')
+    .replace(/^✨\s*/i, '')
+    .trim();
+
+  if (!cleanEnding || cleanEnding.length < 5) {
+    alert('❌ Ending text is too short or empty. Cannot save.');
+    return false;
   }
-  
-  console.log('📝 Saving story with cleaned ending:', cleanEnding.substring(0, 50) + '...');
-  console.log('📝 Full ending length:', cleanEnding.length);
-  
+
+  console.log('💾 Saving story...');
+  console.log('  Original:', originalStory.substring(0, 50));
+  console.log('  Ending:', cleanEnding.substring(0, 50));
+  console.log('  Emotions:', emotions);
+
   try {
     const response = await fetch('/api/stories', {
       method: 'POST',
@@ -655,15 +593,15 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
         emotions: emotions
       })
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
-      console.error('❌ Save error response:', data);
+      console.error('❌ Save error:', data);
       throw new Error(data.error || 'Failed to save');
     }
-    
-    console.log('✅ Story saved:', data);
+
+    console.log('✅ Story saved with ID:', data._id);
     return true;
   } catch (error) {
     console.error('❌ Save error:', error);
@@ -673,27 +611,8 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
 }
 
 // ============================================================
-// ========== AI GENERATION ==========
+// ========== EMOTION CHIPS ==========
 // ============================================================
-async function callBackendAPI(story, emotions) {
-  console.log('📤 Calling AI API...');
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ story, emotions })
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('❌ API Error:', error);
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return await response.json();
-}
-
-// ============================================================
-// ========== UI HANDLERS ==========
-// ============================================================
-
 document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
   chip.addEventListener('click', () => {
     const emo = chip.getAttribute('data-emotion');
@@ -704,10 +623,12 @@ document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
       chip.classList.add('selected');
       selectedEmotionsArray.push(emo);
     }
-    console.log('Selected emotions:', selectedEmotionsArray);
   });
 });
 
+// ============================================================
+// ========== END STORY BUTTON ==========
+// ============================================================
 document.getElementById('endStoryTriggerBtn').addEventListener('click', () => {
   const story = document.getElementById('unfinishedStory').value.trim();
   if (!story) { alert('✨ Please write your story first.'); return; }
@@ -716,187 +637,185 @@ document.getElementById('endStoryTriggerBtn').addEventListener('click', () => {
   document.getElementById('emotionSection').scrollIntoView({ behavior: 'smooth' });
 });
 
+// ============================================================
+// ========== GENERATE ENDINGS ==========
+// ============================================================
 document.getElementById('weaveEndingsBtn').addEventListener('click', async () => {
   const story = currentStoryBeginning;
   if (!story) { alert('📖 Story cannot be empty'); return; }
   if (selectedEmotionsArray.length === 0) { alert('🎭 Please select at least one genre!'); return; }
-  
+
   const wrapper = document.getElementById('endingsWrapper');
-  wrapper.innerHTML = '<div class="loading"><div class="spinner"></div><p>🤖 AI is writing your story continuation...</p></div>';
-  
+  const btn = document.getElementById('weaveEndingsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+
+  wrapper.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>🤖 AI is writing your story continuations...<br>
+      <small style="opacity:0.6;">This may take 15-30 seconds</small></p>
+    </div>`;
+
   try {
-    const data = await callBackendAPI(story, selectedEmotionsArray);
-    const endings = data.endings || [];
-    
-    if (!endings.length) throw new Error('No endings generated');
-    
-    // Store the original endings for saving
-    currentEndingsList = endings.map(e => ({ text: e.text }));
-    
-    let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
-    endings.forEach((end, i) => {
-      let cleanText = end.text;
-      cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
-      cleanText = cleanText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
-      cleanText = cleanText.replace(/^✨\s*/i, '');
-      cleanText = cleanText.trim();
-      
-      if (!cleanText || cleanText.length < 3) {
-        cleanText = `Ending ${i+1}: The story continued with wonder and discovery.`;
-      }
-      
-      html += `
-        <div class="ending-card" data-index="${i}">
-          <h4>📖 Ending ${i+1}</h4>
-          <div class="ending-text">${escapeHtml(cleanText)}</div>
-          <button class="save-btn-mongo" data-ending="${escapeHtml(cleanText)}" data-index="${i}">💾 Save to Library</button>
-        </div>
-      `;
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ story, emotions: selectedEmotionsArray })
     });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Generation failed');
+    }
+
+    const data = await response.json();
+    const endings = data.endings || [];
+
+    if (!endings.length) throw new Error('No endings generated');
+
+    let html = `<h4 style="margin-bottom:1rem;">🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
+
+    endings.forEach((end, i) => {
+      // Clean the text
+      let cleanText = (end.text || '')
+        .replace(/^Continuation\s*\d+:\s*/i, '')
+        .replace(/^✨\s*Continuation\s*\d+:\s*/i, '')
+        .replace(/^✨\s*/i, '')
+        .trim();
+
+      if (!cleanText || cleanText.length < 5) {
+        cleanText = `Story continuation ${i + 1} could not be generated. Please try again.`;
+      }
+
+      // Use data attribute with encoded text to avoid escaping issues
+      html += `
+        <div class="ending-card">
+          <h4>📖 Ending ${i + 1}</h4>
+          <div class="ending-text" id="endingText${i}">${escapeHtml(cleanText)}</div>
+          <button class="save-btn-mongo" data-index="${i}">💾 Save to Library</button>
+        </div>`;
+    });
+
     html += `</div>`;
     wrapper.innerHTML = html;
-    
-    // Attach save handlers
+
+    // Store endings in memory (not in DOM attributes to avoid encoding issues)
+    window._generatedEndings = endings.map((end, i) => {
+      let cleanText = (end.text || '')
+        .replace(/^Continuation\s*\d+:\s*/i, '')
+        .replace(/^✨\s*Continuation\s*\d+:\s*/i, '')
+        .replace(/^✨\s*/i, '')
+        .trim();
+      return cleanText;
+    });
+
+    // Attach save button handlers using stored endings
     document.querySelectorAll('.save-btn-mongo').forEach(btn => {
-      btn.addEventListener('click', async function() {
-        let ending = this.getAttribute('data-ending');
+      btn.addEventListener('click', async function () {
+        const index = parseInt(this.getAttribute('data-index'));
+        const endingText = window._generatedEndings[index];
+
+        if (!endingText || endingText.length < 5) {
+          alert('❌ This ending has no valid text to save.');
+          return;
+        }
+
         const msg = document.getElementById('saveMessage');
-        msg.innerHTML = '<div class="loading" style="padding:0.5rem;"><div class="spinner" style="width:20px;height:20px;"></div><p>Saving to library...</p></div>';
-        
-        console.log('💾 Save button clicked!');
-        console.log('Story:', currentStoryBeginning);
-        console.log('Ending from button:', ending);
-        console.log('Ending length:', ending ? ending.length : 0);
-        
-        // If ending is empty or too short, try to get the original from the list
-        if (!ending || ending.length < 5 || ending === '✨') {
-          const index = parseInt(this.getAttribute('data-index')) || 0;
-          if (currentEndingsList[index]) {
-            let cleanEnd = currentEndingsList[index].text;
-            cleanEnd = cleanEnd.replace(/^Continuation\s*\d+:\s*/i, '');
-            cleanEnd = cleanEnd.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
-            cleanEnd = cleanEnd.replace(/^✨\s*/i, '');
-            cleanEnd = cleanEnd.trim();
-            if (cleanEnd && cleanEnd.length > 5) {
-              ending = cleanEnd;
-              console.log('Using ending from stored list:', ending.substring(0, 50) + '...');
-            }
-          }
-        }
-        
-        // Final fallback
-        if (!ending || ending.length < 5 || ending === '✨') {
-          ending = "The story continued with wonder and discovery. The journey was just beginning, and the protagonist knew that this was only the start of something truly magical.";
-          console.log('Using fallback ending');
-        }
-        
-        const success = await saveStoryToBackend(currentStoryBeginning, ending, selectedEmotionsArray);
-        
+        this.disabled = true;
+        this.textContent = '⏳ Saving...';
+        msg.innerHTML = '<div class="loading" style="padding:0.5rem;"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div><p>Saving to library...</p></div>';
+
+        console.log('💾 Saving ending index:', index);
+        console.log('💾 Ending text:', endingText.substring(0, 80));
+
+        const success = await saveStoryToBackend(currentStoryBeginning, endingText, selectedEmotionsArray);
+
         if (success) {
-          msg.innerHTML = '<div class="success-msg">✅ Story saved successfully!</div>';
+          msg.innerHTML = '<div class="success-msg">✅ Story saved to your library!</div>';
+          this.textContent = '✅ Saved!';
+          this.style.background = '#555';
           await renderLibrary();
-          setTimeout(() => msg.innerHTML = '', 3000);
-          document.querySelector('.tab-btn[data-panel="library"]').click();
+          setTimeout(() => {
+            msg.innerHTML = '';
+            document.querySelector('.tab-btn[data-panel="library"]').click();
+          }, 1500);
         } else {
           msg.innerHTML = '<div class="error-msg">❌ Failed to save. Please try again.</div>';
+          this.disabled = false;
+          this.textContent = '💾 Save to Library';
           setTimeout(() => msg.innerHTML = '', 3000);
         }
       });
     });
-    
+
   } catch (error) {
-    wrapper.innerHTML = `<p style="color:#ff6a5c;">❌ Error: ${error.message}</p>`;
+    wrapper.innerHTML = `<p style="color:#ff6a5c; padding:1rem;">❌ Error: ${escapeHtml(error.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ GENERATE ENDINGS ✨';
   }
 });
 
 // ============================================================
-// ========== LOAD USER PROFILE ==========
+// ========== PROFILE ==========
 // ============================================================
 async function loadProfile() {
   const container = document.getElementById('profileContainer');
   const token = getToken();
-  
-  if (!token) {
-    container.innerHTML = '<p style="color: #e74c3c;">Please login to view profile.</p>';
-    return;
-  }
-  
+  if (!token) { container.innerHTML = '<p style="color:#e74c3c;">Please login to view profile.</p>'; return; }
+
   try {
-    const response = await fetch('/api/me', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    
+    const response = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token } });
     if (!response.ok) throw new Error('Failed to load profile');
-    
     const user = await response.json();
-    
+
     container.innerHTML = `
-      <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 1.5rem;">
-        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+      <div style="background:rgba(0,0,0,0.3); padding:1.5rem; border-radius:1.5rem;">
+        <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap;">
           <div class="profile-avatar">${user.firstName?.charAt(0) || 'U'}</div>
           <div>
-            <h2 style="color: #C7B9FF;">${user.firstName || ''} ${user.lastName || ''}</h2>
+            <h2 style="color:#C7B9FF;">${user.firstName || ''} ${user.lastName || ''}</h2>
             <p>📧 ${user.email || ''}</p>
             <p>📍 ${user.city || 'Not set'}${user.country ? ', ' + user.country : ''}</p>
             <p>🎭 Role: ${user.role || 'writer'}</p>
             <p>📅 Joined: ${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
           </div>
         </div>
-        <hr style="border-color: #6c63ff; margin: 1rem 0;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        <hr style="border-color:#6c63ff; margin:1rem 0;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem;">
           <div class="stat-card">
-            <p style="font-size: 2rem;">📖</p>
+            <p style="font-size:2rem;">📖</p>
             <p><strong>Stories</strong></p>
             <p id="storyCount">Loading...</p>
           </div>
           <div class="stat-card">
-            <p style="font-size: 2rem;">🎭</p>
-            <p><strong>Emotions Used</strong></p>
+            <p style="font-size:2rem;">🎭</p>
+            <p><strong>Genres Used</strong></p>
             <p id="emotionCount">Loading...</p>
           </div>
         </div>
-      </div>
-    `;
-    
-    await loadStoryStats();
-    
-  } catch (error) {
-    console.error('Profile error:', error);
-    container.innerHTML = '<p style="color: #e74c3c;">Failed to load profile. Please login again.</p>';
-  }
-}
+      </div>`;
 
-async function loadStoryStats() {
-  try {
-    const token = getToken();
-    const response = await fetch('/api/stories', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    
-    if (!response.ok) return;
-    
-    const stories = await response.json();
-    document.getElementById('storyCount').textContent = stories.length;
-    
-    const emotions = new Set();
-    stories.forEach(s => {
-      if (s.emotions) s.emotions.forEach(e => emotions.add(e));
-    });
-    document.getElementById('emotionCount').textContent = emotions.size || 'None';
-    
+    // Load stats
+    const storiesRes = await fetch('/api/stories', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (storiesRes.ok) {
+      const stories = await storiesRes.json();
+      document.getElementById('storyCount').textContent = stories.length;
+      const emotions = new Set();
+      stories.forEach(s => s.emotions?.forEach(e => emotions.add(e)));
+      document.getElementById('emotionCount').textContent = emotions.size || '0';
+    }
+
   } catch (error) {
-    console.error('Story stats error:', error);
+    container.innerHTML = '<p style="color:#e74c3c;">Failed to load profile. Please login again.</p>';
   }
 }
 
 // ============================================================
 // ========== TAB SWITCHING ==========
 // ============================================================
-const panels = {
-  writer: 'writerPanel',
-  library: 'libraryPanel',
-  profile: 'profilePanel'
-};
+const panels = { writer: 'writerPanel', library: 'libraryPanel', profile: 'profilePanel' };
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -905,47 +824,38 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById(panels[target]).classList.add('active-panel');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    
-    if (target === 'library') {
-      renderLibrary();
-    }
-    if (target === 'profile') {
-      loadProfile();
-    }
+    if (target === 'library') renderLibrary();
+    if (target === 'profile') loadProfile();
   });
 });
 
 // ============================================================
-// ========== UTILITY FUNCTIONS ==========
+// ========== UTILITY ==========
 // ============================================================
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-// ============================================================
-// ========== REFRESH BUTTON ==========
-// ============================================================
 document.getElementById('refreshStoriesBtn')?.addEventListener('click', renderLibrary);
 
 // ============================================================
-// ========== INITIAL LOAD ==========
+// ========== INIT ==========
 // ============================================================
 window.addEventListener('load', () => {
   if (!getToken()) {
     window.location.href = '/login.html';
   } else {
-    console.log('✅ User is logged in');
     if ('speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
     }
+    console.log('✅ StoryWeaver AI loaded!');
   }
 });
-
-console.log('✅ StoryWeaver AI loaded!');
 </script>
 </body>
 </html>
