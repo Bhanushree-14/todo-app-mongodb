@@ -372,6 +372,7 @@ const API_URL = '/api/generate';
 let selectedEmotionsArray = [];
 let currentStoryBeginning = '';
 let currentStories = [];
+let currentEndings = [];
 
 // ============================================================
 // ========== TOKEN MANAGEMENT ==========
@@ -590,7 +591,7 @@ async function deleteStory(storyId) {
 }
 
 // ============================================================
-// ========== SAVE STORY TO BACKEND ==========
+// ========== SAVE STORY TO BACKEND - FIXED ==========
 // ============================================================
 async function saveStoryToBackend(originalStory, ending, emotions) {
   if (!isLoggedIn()) return false;
@@ -601,18 +602,15 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
   let cleanEnding = ending;
   cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
   cleanEnding = cleanEnding.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
+  cleanEnding = cleanEnding.replace(/^✨\s*/i, '');
   cleanEnding = cleanEnding.trim();
   
-  // If ending is empty, use a default
-  if (!cleanEnding || cleanEnding.length === 0) {
-    cleanEnding = "The story continued with wonder and discovery.";
+  // If ending is empty or just a symbol, use a default
+  if (!cleanEnding || cleanEnding.length < 3 || cleanEnding === '✨') {
+    cleanEnding = "The story continued with wonder and discovery. The journey was just beginning, and the protagonist knew that this was only the start of something truly magical.";
   }
   
-  console.log('📝 Saving story:', {
-    original: originalStory.substring(0, 50) + '...',
-    ending: cleanEnding.substring(0, 50) + '...',
-    emotions: emotions
-  });
+  console.log('📝 Saving story with cleaned ending:', cleanEnding.substring(0, 50) + '...');
   
   try {
     const response = await fetch('/api/stories', {
@@ -702,15 +700,18 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     
     if (!endings.length) throw new Error('No endings generated');
     
+    currentEndings = endings; // Store for saving
+    
     let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
     endings.forEach((end, i) => {
       let cleanText = end.text;
       cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
       cleanText = cleanText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
+      cleanText = cleanText.replace(/^✨\s*/i, '');
       cleanText = cleanText.trim();
       
       // If text is empty, use a default
-      if (!cleanText || cleanText.length === 0) {
+      if (!cleanText || cleanText.length < 3 || cleanText === '✨') {
         cleanText = `Ending ${i+1}: The story continued with wonder and discovery.`;
       }
       
@@ -728,13 +729,15 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     // Attach save handlers
     document.querySelectorAll('.save-btn-mongo').forEach(btn => {
       btn.addEventListener('click', async function() {
-        const ending = this.getAttribute('data-ending');
+        // Get the ending text from the data-ending attribute
+        let ending = this.getAttribute('data-ending');
         const msg = document.getElementById('saveMessage');
         msg.innerHTML = '<div class="loading" style="padding:0.5rem;"><div class="spinner" style="width:20px;height:20px;"></div><p>Saving to library...</p></div>';
         
         console.log('💾 Save button clicked!');
         console.log('Story:', currentStoryBeginning);
-        console.log('Ending:', ending);
+        console.log('Ending captured:', ending);
+        console.log('Ending length:', ending ? ending.length : 0);
         console.log('Emotions:', selectedEmotionsArray);
         
         const success = await saveStoryToBackend(currentStoryBeginning, ending, selectedEmotionsArray);
