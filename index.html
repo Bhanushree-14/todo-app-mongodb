@@ -372,7 +372,6 @@ const API_URL = '/api/generate';
 let selectedEmotionsArray = [];
 let currentStoryBeginning = '';
 let currentStories = [];
-let allEndings = []; // Store all endings for saving
 
 // ============================================================
 // ========== TOKEN MANAGEMENT ==========
@@ -604,6 +603,11 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
   cleanEnding = cleanEnding.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
   cleanEnding = cleanEnding.trim();
   
+  // If ending is empty, use a default
+  if (!cleanEnding || cleanEnding.length === 0) {
+    cleanEnding = "The story continued with wonder and discovery.";
+  }
+  
   console.log('📝 Saving story:', {
     original: originalStory.substring(0, 50) + '...',
     ending: cleanEnding.substring(0, 50) + '...',
@@ -698,14 +702,17 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     
     if (!endings.length) throw new Error('No endings generated');
     
-    allEndings = endings; // Store for saving
-    
     let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
     endings.forEach((end, i) => {
       let cleanText = end.text;
       cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
       cleanText = cleanText.replace(/^✨\s*Continuation\s*\d+:\s*/i, '');
       cleanText = cleanText.trim();
+      
+      // If text is empty, use a default
+      if (!cleanText || cleanText.length === 0) {
+        cleanText = `Ending ${i+1}: The story continued with wonder and discovery.`;
+      }
       
       html += `
         <div class="ending-card" data-index="${i}">
