@@ -109,8 +109,8 @@ app.get('/api/me', auth, async (req, res) => {
 });
 
 // ========== OPENROUTER HELPER (uses https module — no fetch needed) ==========
-// Ordered list of free models to try. If one has no active provider (404),
-// we automatically fall through to the next one.
+// Ordered list of free models to try. If one is unavailable (404) or
+// rate-limited (429), we automatically fall through to the next one.
 const FREE_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'deepseek/deepseek-chat-v3.1:free',
@@ -165,9 +165,9 @@ function callOpenRouterOnce(apiKey, model, messages, temperature) {
   });
 }
 
-// Tries each model in FREE_MODELS in order. Moves to the next one only on a
-// 404 "no endpoints" error, since that means the model itself is unavailable
-// rather than a problem with the request.
+// Tries each model in FREE_MODELS in order. Falls through to the next model
+// on 404 (model unavailable) or 429 (rate-limited), since both mean this
+// particular model/provider can't serve the request right now.
 async function callOpenRouter(apiKey, messages, temperature) {
   let lastError;
   for (const model of FREE_MODELS) {
@@ -177,7 +177,7 @@ async function callOpenRouter(apiKey, messages, temperature) {
     } catch (err) {
       lastError = err;
       console.warn('⚠️ Model failed:', model, '-', err.message);
-      if (err.statusCode !== 404) {
+      if (err.statusCode !== 404 && err.statusCode !== 429) {
         throw err;
       }
     }
@@ -225,11 +225,14 @@ app.post('/api/generate', async (req, res) => {
   }
 
   try {
-    const endings = await Promise.all([
-      generateEnding(1),
-      generateEnding(2),
-      generateEnding(3)
-    ]);
+    // Run sequentially with a short gap instead of all 3 at once —
+    // free-tier models rate-limit concurrent requests aggressively.
+    const endings = [];
+    for (const num of [1, 2, 3]) {
+      const ending = await generateEnding(num);
+      endings.push(ending);
+      if (num < 3) await new Promise(r => setTimeout(r, 1500));
+    }
     console.log('✅ All 3 endings generated successfully');
     res.json({ endings });
   } catch (error) {
