@@ -115,10 +115,27 @@ app.post('/api/generate', async (req, res) => {
   const { story, emotions } = req.body;
   if (!story) return res.status(400).json({ error: 'No story provided' });
 
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+  // ---- DEBUG: print ALL env var keys so we can see exact names on Render ----
+  console.log('🔑 Available env keys:', Object.keys(process.env).filter(k =>
+    k.toLowerCase().includes('open') ||
+    k.toLowerCase().includes('router') ||
+    k.toLowerCase().includes('hugging') ||
+    k.toLowerCase().includes('api')
+  ));
+
+  // Try every possible variable name the user might have set
+  const OPENROUTER_API_KEY =
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPENROUTER_KEY ||
+    process.env.OPEN_ROUTER_API_KEY ||
+    process.env.openrouter_api_key ||
+    process.env.OPENROUTERAPIKEY;
+
+  console.log('🔑 OpenRouter key found:', OPENROUTER_API_KEY ? 'YES ✅ (starts with: ' + OPENROUTER_API_KEY.substring(0, 8) + '...)' : 'NO ❌');
+
   if (!OPENROUTER_API_KEY) {
-    console.error('❌ OPENROUTER_API_KEY not set');
-    return res.status(500).json({ error: 'AI service not configured. Set OPENROUTER_API_KEY in environment.' });
+    console.error('❌ No OpenRouter API key found in environment');
+    return res.status(500).json({ error: 'AI service not configured. Please check your OPENROUTER_API_KEY in Render environment.' });
   }
 
   const emotionText = emotions?.join(', ') || 'general';
