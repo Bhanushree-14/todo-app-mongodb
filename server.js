@@ -109,13 +109,15 @@ app.get('/api/me', auth, async (req, res) => {
 });
 
 // ========== OPENROUTER HELPER (uses https module — no fetch needed) ==========
-// Ordered list of free models to try. If one is unavailable (404) or
-// rate-limited (429), we automatically fall through to the next one.
+// 'openrouter/free' is OpenRouter's built-in router that automatically picks
+// a currently-available free model for you — this avoids hardcoding a slug
+// that can go down or get renamed. We still keep a couple of known-stable
+// slugs behind it as backup in case the router itself has an issue.
 const FREE_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'deepseek/deepseek-chat-v3.1:free',
-  'meta-llama/llama-4-scout:free',
-  'mistralai/mistral-7b-instruct:free'
+  'openrouter/free',
+  'deepseek/deepseek-chat-v3-0324:free',
+  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+  'meta-llama/llama-3.3-70b-instruct:free'
 ];
 
 function callOpenRouterOnce(apiKey, model, messages, temperature) {
