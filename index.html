@@ -133,6 +133,7 @@
       width: 100%;
       margin-top: 10px;
       color: white;
+      font-size: 1rem;
     }
     .save-btn-mongo:hover { background: #218838; }
     
@@ -187,7 +188,6 @@
     
     .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     
-    /* Profile Styles */
     .profile-avatar {
       font-size: 4rem;
       background: #6c63ff;
@@ -206,7 +206,6 @@
       text-align: center;
     }
     
-    /* Modal */
     #storyModal, #editModal {
       display: none;
       position: fixed;
@@ -280,14 +279,11 @@
     <button class="tab-btn" data-panel="profile">👤 Profile</button>
   </div>
 
-  <!-- WRITER PANEL -->
   <div id="writerPanel" class="panel active-panel">
     <div class="glass-card">
       <h3>✨ Your Incomplete Story</h3>
       <textarea id="unfinishedStory" rows="5" class="story-textarea" placeholder="Write your story beginning here..."></textarea>
-      
       <button id="endStoryTriggerBtn" class="end-story-btn">📖 END MY STORY TELLING</button>
-
       <div id="emotionSection" style="display: none;">
         <h4>🎭 Select Genres for Your Story</h4>
         <div class="emotion-grid" id="emotionGrid">
@@ -300,13 +296,11 @@
         </div>
         <button id="weaveEndingsBtn" class="weave-btn">✨ GENERATE ENDINGS ✨</button>
       </div>
-
       <div id="endingsWrapper" style="margin-top: 1.8rem;"></div>
       <div id="saveMessage" style="margin-top: 1rem;"></div>
     </div>
   </div>
 
-  <!-- LIBRARY PANEL -->
   <div id="libraryPanel" class="panel">
     <div class="glass-card">
       <div class="flex-between">
@@ -319,7 +313,6 @@
     </div>
   </div>
 
-  <!-- PROFILE PANEL -->
   <div id="profilePanel" class="panel">
     <div class="glass-card">
       <h3>👤 My Profile</h3>
@@ -332,7 +325,6 @@
   <footer style="text-align:center; margin-top:2rem; opacity:0.5; font-size:0.8rem;">✨ Create · Save · Share Your Stories</footer>
 </div>
 
-<!-- STORY MODAL -->
 <div id="storyModal">
   <div class="modal-content">
     <div class="flex-between">
@@ -347,7 +339,6 @@
   </div>
 </div>
 
-<!-- EDIT MODAL -->
 <div id="editModal">
   <div class="modal-content">
     <div class="flex-between">
@@ -484,7 +475,7 @@ function closeModal() {
 }
 
 // ============================================================
-// ========== SPEAK STORY (TEXT-TO-SPEECH) ==========
+// ========== SPEAK STORY ==========
 // ============================================================
 async function speakStory(storyId) {
   const stories = await loadStoriesFromBackend();
@@ -591,20 +582,25 @@ async function deleteStory(storyId) {
 }
 
 // ============================================================
-// ========== SAVE STORY TO BACKEND ==========
+// ========== SAVE STORY TO BACKEND - FIXED ==========
 // ============================================================
 async function saveStoryToBackend(originalStory, ending, emotions) {
   if (!isLoggedIn()) return false;
   
   const token = getToken();
+  
+  // Clean the ending - remove "Continuation X:" if present
+  let cleanEnding = ending;
+  cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
+  cleanEnding = cleanEnding.trim();
+  
+  console.log('📝 Saving story:', {
+    original: originalStory.substring(0, 50) + '...',
+    ending: cleanEnding.substring(0, 50) + '...',
+    emotions: emotions
+  });
+  
   try {
-    // Clean the ending - remove "Continuation X:" if present
-    let cleanEnding = ending;
-    // Remove "Continuation X:" pattern
-    cleanEnding = cleanEnding.replace(/^Continuation\s*\d+:\s*/i, '');
-    // Remove leading/trailing spaces
-    cleanEnding = cleanEnding.trim();
-    
     const response = await fetch('/api/stories', {
       method: 'POST',
       headers: {
@@ -618,13 +614,14 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
       })
     });
     
+    const data = await response.json();
+    
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to save');
+      console.error('❌ Save error response:', data);
+      throw new Error(data.error || 'Failed to save');
     }
     
-    const savedStory = await response.json();
-    console.log('✅ Story saved:', savedStory);
+    console.log('✅ Story saved:', data);
     return true;
   } catch (error) {
     console.error('❌ Save error:', error);
@@ -637,12 +634,17 @@ async function saveStoryToBackend(originalStory, ending, emotions) {
 // ========== AI GENERATION ==========
 // ============================================================
 async function callBackendAPI(story, emotions) {
+  console.log('📤 Calling AI API...');
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ story, emotions })
   });
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('❌ API Error:', error);
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
   return await response.json();
 }
 
@@ -660,6 +662,7 @@ document.querySelectorAll('#emotionGrid .emotion-chip').forEach(chip => {
       chip.classList.add('selected');
       selectedEmotionsArray.push(emo);
     }
+    console.log('Selected emotions:', selectedEmotionsArray);
   });
 });
 
@@ -687,7 +690,6 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     
     let html = `<h4>🌟 ${endings.length} AI Generated Endings</h4><div class="endings-grid">`;
     endings.forEach((end, i) => {
-      // Clean the ending text - remove "Continuation X:" if present
       let cleanText = end.text;
       cleanText = cleanText.replace(/^Continuation\s*\d+:\s*/i, '');
       cleanText = cleanText.trim();
@@ -703,22 +705,29 @@ document.getElementById('weaveEndingsBtn').addEventListener('click', async () =>
     html += `</div>`;
     wrapper.innerHTML = html;
     
+    // Attach save handlers
     document.querySelectorAll('.save-btn-mongo').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const ending = btn.getAttribute('data-ending');
+      btn.addEventListener('click', async function() {
+        const ending = this.getAttribute('data-ending');
         const msg = document.getElementById('saveMessage');
-        msg.innerHTML = '<div class="loading" style="padding:0.5rem;"><div class="spinner" style="width:20px;height:20px;"></div><p>Saving...</p></div>';
+        msg.innerHTML = '<div class="loading" style="padding:0.5rem;"><div class="spinner" style="width:20px;height:20px;"></div><p>Saving to library...</p></div>';
+        
+        console.log('💾 Save button clicked!');
+        console.log('Story:', currentStoryBeginning);
+        console.log('Ending:', ending);
+        console.log('Emotions:', selectedEmotionsArray);
         
         const success = await saveStoryToBackend(currentStoryBeginning, ending, selectedEmotionsArray);
         
         if (success) {
           msg.innerHTML = '<div class="success-msg">✅ Story saved successfully!</div>';
+          // Refresh library after save
+          await renderLibrary();
           setTimeout(() => msg.innerHTML = '', 3000);
-          setTimeout(() => {
-            document.querySelector('.tab-btn[data-panel="library"]').click();
-          }, 1500);
+          // Switch to library tab
+          document.querySelector('.tab-btn[data-panel="library"]').click();
         } else {
-          msg.innerHTML = '<div class="error-msg">❌ Failed to save.</div>';
+          msg.innerHTML = '<div class="error-msg">❌ Failed to save. Please try again.</div>';
           setTimeout(() => msg.innerHTML = '', 3000);
         }
       });
@@ -753,9 +762,7 @@ async function loadProfile() {
     container.innerHTML = `
       <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
-          <div class="profile-avatar">
-            ${user.firstName?.charAt(0) || 'U'}
-          </div>
+          <div class="profile-avatar">${user.firstName?.charAt(0) || 'U'}</div>
           <div>
             <h2 style="color: #C7B9FF;">${user.firstName || ''} ${user.lastName || ''}</h2>
             <p>📧 ${user.email || ''}</p>
